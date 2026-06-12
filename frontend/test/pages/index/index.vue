@@ -1,52 +1,64 @@
 <template>
-	<view class="content">
-		<image class="logo" src="/static/logo.png"></image>
-		<view class="text-area">
-			<text class="title">{{title}}</text>
+	<view class="container">
+		<view class="header">
+			<text class="title">欢迎使用企业访客系统</text>
+		</view>
+		
+		<view class="nav-grid">
+			<view class="nav-item" @click="goToApply">
+				<text class="icon">📝</text>
+				<text>我要预约</text>
+			</view>
+			<view class="nav-item">
+				<text class="icon">🔍</text>
+				<text>扫码核验</text>
+			</view>
+			<view class="nav-item">
+				<text class="icon">📋</text>
+				<text>访客记录</text>
+			</view>
 		</view>
 	</view>
 </template>
 
-<script>
-	export default {
-		data() {
-			return {
-				title: 'Hello'
-			}
-		},
-		onLoad() {
+<script setup>
+import { ref } from 'vue';
 
-		},
-		methods: {
-
-		}
-	}
+const goToApply = () => {
+	uni.switchTab({
+		url: '/pages/apply/apply'
+	});
+};
 </script>
 
-<style>
-	.content {
+<style lang="scss">
+.container {
+	padding: 20px;
+}
+.header {
+	margin-bottom: 30px;
+	text-align: center;
+	.title {
+		font-size: 20px;
+		font-weight: bold;
+		color: #333;
+	}
+}
+.nav-grid {
+	display: flex;
+	justify-content: space-around;
+	.nav-item {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
+		padding: 15px;
+		background-color: #f5f5f5;
+		border-radius: 10px;
+		width: 25%;
+		.icon {
+			font-size: 30px;
+			margin-bottom: 10px;
+		}
 	}
-
-	.logo {
-		height: 200rpx;
-		width: 200rpx;
-		margin-top: 200rpx;
-		margin-left: auto;
-		margin-right: auto;
-		margin-bottom: 50rpx;
-	}
-
-	.text-area {
-		display: flex;
-		justify-content: center;
-	}
-
-	.title {
-		font-size: 36rpx;
-		color: #8f8f94;
-	}
+}
 </style>
