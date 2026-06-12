@@ -3,45 +3,69 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "企业访客平台"
+				"navigationBarTitleText": "访客登记审批",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
 			}
+		},
+		{
+			"path": "pages/notice/notice",
+			"style": { "navigationBarTitleText": "通知公告", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
 		},
 		{
 			"path": "pages/apply/apply",
-			"style": {
-				"navigationBarTitleText": "访客预约"
-			}
+			"style": { "navigationBarTitleText": "我要申请", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
+		},
+		{
+			"path": "pages/record/record",
+			"style": { "navigationBarTitleText": "我的申请", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
 		},
 		{
 			"path": "pages/my/my",
-			"style": {
-				"navigationBarTitleText": "个人中心"
-			}
+			"style": { "navigationBarTitleText": "个人中心", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
 		}
 	],
 	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "企业访客小程序",
-		"navigationBarBackgroundColor": "#FFFFFF",
-		"backgroundColor": "#F8F8F8"
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "访客登记审批小程序",
+		"navigationBarBackgroundColor": "#3B5BDB",
+		"backgroundColor": "#F5F7FA"
 	},
 	"tabBar": {
-		"color": "#999999",
-		"selectedColor": "#007AFF",
 		"backgroundColor": "#FFFFFF",
-		"borderStyle": "black",
+		"color": "#95A5A6",
+		"selectedColor": "#3B5BDB",
+		"borderStyle": "white",
 		"list": [
 			{
 				"pagePath": "pages/index/index",
-				"text": "首页"
+				"text": "首页",
+				"iconPath": "static/images/tabbar/home1.png",
+				"selectedIconPath": "static/images/tabbar/home_cur1.png"
+			},
+			{
+				"pagePath": "pages/notice/notice",
+				"text": "公告",
+				"iconPath": "static/images/tabbar/news1.png",
+				"selectedIconPath": "static/images/tabbar/news_cur1.png"
 			},
 			{
 				"pagePath": "pages/apply/apply",
-				"text": "预约"
+				"text": "我要申请",
+				"iconPath": "static/images/tabbar/add1.png",
+				"selectedIconPath": "static/images/tabbar/add_cur1.png"
+			},
+			{
+				"pagePath": "pages/record/record",
+				"text": "我的申请",
+				"iconPath": "static/images/tabbar/task2.png",
+				"selectedIconPath": "static/images/tabbar/task_cur2.png"
 			},
 			{
 				"pagePath": "pages/my/my",
-				"text": "我的"
+				"text": "我的",
+				"iconPath": "static/images/tabbar/my1.png",
+				"selectedIconPath": "static/images/tabbar/my_cur1.png"
 			}
 		]
 	}
