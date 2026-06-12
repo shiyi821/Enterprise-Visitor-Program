@@ -13,6 +13,14 @@
 			"style": { "navigationBarTitleText": "通知公告", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
 		},
 		{
+			"path": "pages/notice/detail",
+			"style": {
+				"navigationBarTitleText": "消息详情",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/apply/apply",
 			"style": { "navigationBarTitleText": "我要申请", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
 		},
