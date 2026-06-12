@@ -31,6 +31,10 @@
 		{
 			"path": "pages/my/my",
 			"style": { "navigationBarTitleText": "个人中心", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
+		},
+		{
+			"path": "pages/my/myinfo",
+			"style": { "navigationBarTitleText": "我的资料", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
 		}
 	],
 	"globalStyle": {

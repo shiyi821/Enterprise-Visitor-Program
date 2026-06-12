@@ -5,6 +5,8 @@ import com.youlai.boot.common.base.BaseEntity;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Date;
+
 /**
  * 用户实体
  */
@@ -72,4 +74,8 @@ public class SysUser extends BaseEntity {
      * 是否删除(0-否 1-是)
      */
     private Integer isDeleted;
+
+    private Date createTime;
+    private Date updateTime;
+    private String openId;
 }
