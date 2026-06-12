@@ -21,6 +21,14 @@
 </script>
 
 <style lang="scss">
+:global(page::-webkit-scrollbar), ::-webkit-scrollbar {
+	display: none !important;
+	width: 0 !important;
+	height: 0 !important;
+	color: transparent !important;
+	background: transparent !important;
+}
+
 .container {
 	background-color: #f8f8f8;
 	min-height: 100vh;
