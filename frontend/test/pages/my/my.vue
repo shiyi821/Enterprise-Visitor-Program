@@ -52,6 +52,10 @@
 	</view>
 </template>
 
+			<button v-if="isLoggedIn" class="logout-btn" @click="handleLogout">退出登录</button>
+		</view>
+	</view>
+</template>
 <script setup>
 	import {
 		ref
