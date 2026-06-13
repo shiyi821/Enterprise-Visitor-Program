@@ -210,7 +210,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, SysUser> implements
      */
     @Override
     public UserAuthInfo getAuthInfoByUsername(String username) {
-        UserAuthInfo userAuthInfo = this.baseMapper.getAuthInfoByUsername(username);
+        //UserAuthInfo userAuthInfo = this.baseMapper.getAuthInfoByUsername(username);
+        UserAuthInfo userAuthInfo = this.baseMapper.getAuthInfoByMobile(username);
         if (userAuthInfo != null) {
             Set<String> roles = userAuthInfo.getRoles();
             // 获取数据权限列表（用于并集策略）

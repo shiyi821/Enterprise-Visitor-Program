@@ -1,6 +1,5 @@
 {
-	"pages": [
-		{
+	"pages": [{
 			"path": "pages/index/index",
 			"style": {
 				"navigationBarTitleText": "访客登记审批",
@@ -10,7 +9,11 @@
 		},
 		{
 			"path": "pages/notice/notice",
-			"style": { "navigationBarTitleText": "通知公告", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
+			"style": {
+				"navigationBarTitleText": "通知公告",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
+			}
 		},
 		{
 			"path": "pages/notice/detail",
@@ -22,19 +25,99 @@
 		},
 		{
 			"path": "pages/apply/apply",
-			"style": { "navigationBarTitleText": "我要申请", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
+			"style": {
+				"navigationBarTitleText": "我要申请",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
+			}
 		},
 		{
 			"path": "pages/record/record",
-			"style": { "navigationBarTitleText": "我的申请", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
+			"style": {
+				"navigationBarTitleText": "我的申请",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
+			}
 		},
 		{
 			"path": "pages/my/my",
-			"style": { "navigationBarTitleText": "个人中心", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
+			"style": {
+				"navigationBarTitleText": "个人中心",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
+			}
 		},
 		{
 			"path": "pages/my/myinfo",
-			"style": { "navigationBarTitleText": "我的资料", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
+			"style": {
+				"navigationBarTitleText": "我的资料",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "身份验证",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/admin/admin",
+			"style": {
+				"navigationBarTitleText": "系统后台管理",
+				"navigationBarBackgroundColor": "#0066ce",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/admin/audit/list",
+			"style": {
+				"navigationBarTitleText": "访客审批",
+				"navigationBarBackgroundColor": "#0066ce",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/admin/record/list",
+			"style": {
+				"navigationBarTitleText": "历史记录",
+				"navigationBarBackgroundColor": "#0066ce",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/admin/detail/detail",
+			"style": {
+				"navigationBarTitleText": "访客详细信息",
+				"navigationBarBackgroundColor": "#0066ce",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+		  "path": "pages/admin/dept/list",
+		  "style": {
+		    "navigationBarTitleText": "部门管理",
+		    "navigationBarBackgroundColor": "#0066ce",
+		    "navigationBarTextStyle": "black"
+		  }
+		},
+		{
+		  "path": "pages/admin/employee/list",
+		  "style": {
+		    "navigationBarTitleText": "员工管理",
+		    "navigationBarBackgroundColor": "#0066ce",
+		    "navigationBarTextStyle": "black"
+		  }
+		},
+		{
+		  "path": "pages/admin/holiday/index",
+		  "style": {
+		    "navigationBarTitleText": "节假日管理",
+		    "navigationBarBackgroundColor": "#0066ce",
+		    "navigationBarTextStyle": "black"
+		  }
 		}
 	],
 	"globalStyle": {
@@ -48,8 +131,7 @@
 		"color": "#95A5A6",
 		"selectedColor": "#3B5BDB",
 		"borderStyle": "white",
-		"list": [
-			{
+		"list": [{
 				"pagePath": "pages/index/index",
 				"text": "首页",
 				"iconPath": "static/images/tabbar/home1.png",
