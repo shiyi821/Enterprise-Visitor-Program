@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--suppress ALL -->
+<mapper namespace="com.youlai.boot.system.mapper.VisitorApplicationMapper">
+
+    <!-- 访客申请分页列表 mysql版本-->
+    <select id="getApplicationPage" resultType="com.youlai.boot.system.model.vo.VisitorApplicationPageVO" databaseId="mysql">
+        SELECT
+        va.id,
+        va.visit_date,
+        va.visit_time,
+        va.dept_id,
+        d.name AS deptName,
+        va.applicant_name AS applicantName,
+        va.applicant_phone AS applicantPhone,
+        va.visitor_count AS visitorCount,
+        va.visit_purpose AS visitPurpose,
+        va.visited_person_id AS visitedPersonId,
+        u.nickname AS visitedPersonName,
+        va.visitor_company AS visitorCompany,
+        va.application_status AS applicationStatus,
+        va.create_time AS createTime
+        FROM
+        visitor_application va
+        LEFT JOIN sys_dept d ON va.dept_id = d.id
+        LEFT JOIN sys_user u ON va.visited_person_id = u.id
+        <where>
+            <if test='queryParams.keywords!=null and queryParams.keywords.trim() neq ""'>
+                AND (
+                va.applicant_name LIKE CONCAT('%',#{queryParams.keywords},'%')
+                OR va.applicant_phone LIKE CONCAT('%',#{queryParams.keywords},'%')
+                OR va.visit_purpose LIKE CONCAT('%',#{queryParams.keywords},'%')
+                )
+            </if>
+            <if test='queryParams.status!=null'>
+                AND va.application_status = #{queryParams.status}
+            </if>
+            <if test='queryParams.deptId!=null'>
+                AND va.dept_id = #{queryParams.deptId}
+            </if>
+            <if test="queryParams.createTime != null and queryParams.createTime.size > 0">
+                <if test="queryParams.createTime[0] != null and queryParams.createTime[0] != ''">
+                    <bind name="startDate" value="queryParams.createTime[0].length() == 10 ? queryParams.createTime[0] + ' 00:00:00' : queryParams.createTime[0]"/>
+                    AND va.create_time &gt;= #{startDate}
+                </if>
+                <if test="queryParams.createTime[1] != null and queryParams.createTime[1] != ''">
+                    <bind name="endDate" value="queryParams.createTime[1].length() == 10 ? queryParams.createTime[1] + ' 23:59:59' : queryParams.createTime[1]"/>
+                    AND va.create_time &lt;= #{endDate}
+                </if>
+            </if>
+        </where>
+        <choose>
+            <when test="queryParams.sortBy != null and queryParams.sortBy != '' and queryParams.order != null">
+                ORDER BY va.${queryParams.sortBy} ${queryParams.order}
+            </when>
+            <otherwise>
+                ORDER BY va.update_time DESC, va.create_time DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 访客申请表单信息映射 -->
+    <resultMap id="ApplicationFormMap" type="com.youlai.boot.system.model.form.VisitorApplicationForm">
+        <id property="id" column="id" jdbcType="VARCHAR"/>
+        <result property="visitDate" column="visit_date" jdbcType="DATE"/>
+        <result property="visitTime" column="visit_time" jdbcType="TIME"/>
+        <result property="deptId" column="dept_id" jdbcType="VARCHAR"/>
+        <result property="applicantName" column="applicant_name" jdbcType="VARCHAR"/>
+        <result property="applicantPhone" column="applicant_phone" jdbcType="VARCHAR"/>
+        <result property="visitorCount" column="visitor_count" jdbcType="INTEGER"/>
+        <result property="visitPurpose" column="visit_purpose" jdbcType="VARCHAR"/>
+        <result property="visitedPersonId" column="visited_person_id" jdbcType="VARCHAR"/>
+        <result property="visitorCompany" column="visitor_company" jdbcType="VARCHAR"/>
+        <result property="companionVisitors" column="companion_visitors" jdbcType="VARCHAR"/>
+        <result property="visitedPersonApprovalStatus" column="visited_person_approval_status" jdbcType="TINYINT"/>
+        <result property="adminApprovalStatus" column="admin_approval_status" jdbcType="TINYINT"/>
+        <result property="adminId" column="admin_id" jdbcType="BIGINT"/>
+        <result property="guardId" column="guard_id" jdbcType="BIGINT"/>
+        <result property="applicationStatus" column="application_status" jdbcType="TINYINT"/>
+        <result property="visitedApprovalTime" column="visited_approval_time" jdbcType="TIMESTAMP"/>
+        <result property="adminApprovalTime" column="admin_approval_time" jdbcType="TIMESTAMP"/>
+        <result property="guardTime" column="guard_time" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <!-- 根据ID获取访客申请表单详情 -->
+    <select id="getApplicationFormData" resultMap="ApplicationFormMap">
+        SELECT
+            id,
+            visit_date,
+            visit_time,
+            dept_id,
+            applicant_name,
+            applicant_phone,
+            visitor_count,
+            visit_purpose,
+            visited_person_id,
+            visitor_company,
+            companion_visitors,
+            visited_person_approval_status,
+            admin_approval_status,
+            admin_id,
+            guard_id,
+            application_status,
+            visited_approval_time,
+            admin_approval_time,
+            guard_time
+        FROM
+            visitor_application
+        WHERE
+            id = #{id}
+    </select>
+
+</mapper>
