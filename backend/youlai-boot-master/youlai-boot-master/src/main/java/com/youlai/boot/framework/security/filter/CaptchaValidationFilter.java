@@ -54,35 +54,36 @@ public class CaptchaValidationFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-
-        // 仅支持 JSON 登录
-        String contentType = request.getContentType();
-        if (contentType == null || !contentType.contains(MediaType.APPLICATION_JSON_VALUE)) {
-            ResponseWriter.writeError(response, ResultCode.USER_VERIFICATION_CODE_ERROR);
-            return;
-        }
-
-        // 包装请求，确保下游还能读取 body
-        ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(request, -1);
-
-        byte[] bodyBytes = StreamUtils.copyToByteArray(requestWrapper.getInputStream());
-        String body = new String(bodyBytes, StandardCharsets.UTF_8);
-        String captchaCode = null;
-        String captchaId = null;
-
-        if (StrUtil.isNotBlank(body)) {
-            JSONObject jsonObject = JSONUtil.parseObj(body);
-            captchaCode = jsonObject.getStr(CAPTCHA_CODE_PARAM_NAME);
-            captchaId = jsonObject.getStr(CAPTCHA_ID_PARAM_NAME);
-        }
-
-        try {
-            captchaService.validate(captchaId, captchaCode);
-            HttpServletRequest repeatableRequest = new RepeatableReadRequestWrapper(requestWrapper, bodyBytes);
-            chain.doFilter(repeatableRequest, response);
-        } catch (CaptchaException e) {
-            ResponseWriter.writeError(response, e.getResultCode());
-        }
+        chain.doFilter(request, response);
+       // return;
+//        // 仅支持 JSON 登录
+//        String contentType = request.getContentType();
+//        if (contentType == null || !contentType.contains(MediaType.APPLICATION_JSON_VALUE)) {
+//            ResponseWriter.writeError(response, ResultCode.USER_VERIFICATION_CODE_ERROR);
+//            return;
+//        }
+//
+//        // 包装请求，确保下游还能读取 body
+//        ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(request, -1);
+//
+//        byte[] bodyBytes = StreamUtils.copyToByteArray(requestWrapper.getInputStream());
+//        String body = new String(bodyBytes, StandardCharsets.UTF_8);
+//        String captchaCode = null;
+//        String captchaId = null;
+//
+//        if (StrUtil.isNotBlank(body)) {
+//            JSONObject jsonObject = JSONUtil.parseObj(body);
+//            captchaCode = jsonObject.getStr(CAPTCHA_CODE_PARAM_NAME);
+//            captchaId = jsonObject.getStr(CAPTCHA_ID_PARAM_NAME);
+//        }
+//
+//        try {
+//            captchaService.validate(captchaId, captchaCode);
+//            HttpServletRequest repeatableRequest = new RepeatableReadRequestWrapper(requestWrapper, bodyBytes);
+//            chain.doFilter(repeatableRequest, response);
+//        } catch (CaptchaException e) {
+//            ResponseWriter.writeError(response, e.getResultCode());
+//        }
     }
 
     /**

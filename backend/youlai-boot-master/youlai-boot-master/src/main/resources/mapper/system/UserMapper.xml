@@ -152,6 +152,7 @@
         SELECT
             t1.id userId,
             t1.username,
+            t1.password,
             t1.nickname,
             t1.STATUS,
             t1.dept_id ,

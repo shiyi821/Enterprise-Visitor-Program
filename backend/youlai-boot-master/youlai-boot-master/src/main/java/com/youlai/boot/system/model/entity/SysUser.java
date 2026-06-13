@@ -75,7 +75,5 @@ public class SysUser extends BaseEntity {
      */
     private Integer isDeleted;
 
-    private Date createTime;
-    private Date updateTime;
     private String openId;
 }
