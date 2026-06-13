@@ -35,6 +35,14 @@
 		{
 			"path": "pages/my/myinfo",
 			"style": { "navigationBarTitleText": "我的资料", "navigationBarBackgroundColor": "#245381", "navigationBarTextStyle": "white" }
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "身份验证",
+				"navigationBarBackgroundColor": "#245381",
+				"navigationBarTextStyle": "white"
+			}
 		}
 	],
 	"globalStyle": {

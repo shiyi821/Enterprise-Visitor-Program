@@ -311,7 +311,14 @@ const submitApply = () => {
 };
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
+:global(page::-webkit-scrollbar), ::-webkit-scrollbar {
+	display: none !important;
+	width: 0 !important;
+	height: 0 !important;
+	color: transparent !important;
+	background: transparent !important;
+}
 .container {
   padding: 20px;
   background-color: #f8f9fa;

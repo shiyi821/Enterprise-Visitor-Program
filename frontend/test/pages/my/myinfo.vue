@@ -4,7 +4,7 @@
       <view class="info-item avatar-item" @click="changeAvatar">
         <text class="label">头像</text>
         <view class="right-content">
-          <image class="avatar" :src="userInfo.avatar || '/static/default-avatar.png'" mode="aspectFill"></image>
+          <image :key="userInfo.avatar" class="avatar" :src="userInfo.avatar || '/static/default-avatar.png'" mode="aspectFill"></image>
           <text class="arrow">></text>
         </view>
       </view>
@@ -42,12 +42,12 @@
         </view>
       </view>
 
-      <view class="info-item readonly">
-        <text class="label">部门名称</text>
-        <view class="right-content">
-          <text class="value-text">{{ userInfo.deptName || '暂无部门' }}</text>
-        </view>
+    <view class="info-item readonly" v-if="userInfo.deptName">
+      <text class="label">部门名称</text>
+      <view class="right-content">
+        <text class="value-text">{{ userInfo.deptName }}</text>
       </view>
+    </view>
 
       <view class="info-item readonly">
         <text class="label">账号状态</text>
@@ -65,27 +65,55 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { onLoad } from '@dcloudio/uni-app'; 
+import { request } from '@/utils/request.js'; 
 
-// 模拟从后端获取的数据，结构对应你提供的Java实体类
+// 初始化数据结构
 const userInfo = ref({
-  username: 'ZhangSan',
-  nickname: '张三',
-  gender: 1, // 1-男 2-女 0-保密
-  deptName: '技术研发部', // 原Java字段为Long，这里假设前端展示的是解析后的字符串
+  username: '',
+  nickname: '',
+  gender: 0, 
+  deptName: '',
   avatar: '', 
-  mobile: '13800138000',
-  status: 1  // 1-正常 0-禁用
+  mobile: '',
+  status: 1
 });
 
 // 性别选择器逻辑
 const genderArray = ['保密', '男', '女'];
 const genderIndex = computed(() => {
-  // 映射关系：0-保密(index 0), 1-男(index 1), 2-女(index 2)
-  return userInfo.value.gender; 
+  return userInfo.value.gender || 0; 
 });
 
 const bindGenderChange = (e) => {
   userInfo.value.gender = parseInt(e.detail.value);
+};
+
+// 页面加载自动获取真实数据
+onLoad(() => {
+  fetchUserProfile();
+});
+
+const fetchUserProfile = async () => {
+  try {
+    const res = await request({
+      url: '/api/v1/users/profile',
+      method: 'GET'
+    });
+    if (res && res.data) {
+		console.log('后端返回的个人资料真实数据：', res.data);
+      userInfo.value = res.data;
+	  if (userInfo.value.status === undefined || userInfo.value.status === null) {
+	          userInfo.value.status = 1;
+	        }
+      // 💡 核心修复 2：防止后端万一返回的 avatar 字段类型异常（如 null 或 0 ），强行标准化为字符串
+      if (typeof userInfo.value.avatar !== 'string') {
+        userInfo.value.avatar = '';
+      }
+    }
+  } catch (err) {
+    console.error('拉取个人资料失败:', err);
+  }
 };
 
 // 修改头像
@@ -93,28 +121,44 @@ const changeAvatar = () => {
   uni.chooseImage({
     count: 1,
     success: (res) => {
-      userInfo.value.avatar = res.tempFilePaths[0];
-      // 此处应调用上传图片的接口
+      if (res.tempFilePaths && res.tempFilePaths.length > 0) {
+        // ✅ 正确做法：直接取数组的第一个元素 res.tempFilePaths
+        userInfo.value.avatar = res.tempFilePaths;
+      }
+    },
+    fail: (err) => {
+      console.error('选择图片失败:', err);
     }
   });
 };
 
-// 提交保存
-const saveProfile = () => {
-  console.log('准备提交的数据:', userInfo.value);
+// 提交修改到后端
+const saveProfile = async () => {
+  console.log('准备提交给后端的真实数据:', userInfo.value);
   uni.showLoading({ title: '保存中...' });
   
-  // 模拟请求延迟
-  setTimeout(() => {
+  try {
+    const res = await request({
+      url: '/api/v1/users/profile',
+      method: 'PUT',
+      data: userInfo.value 
+    });
+    
     uni.hideLoading();
+	uni.setStorageSync('userInfo', userInfo.value);
     uni.showToast({
       title: '保存成功',
       icon: 'success'
     });
+    
     setTimeout(() => {
       uni.navigateBack();
     }, 1500);
-  }, 800);
+    
+  } catch (err) {
+    uni.hideLoading();
+    console.error('保存修改失败:', err);
+  }
 };
 </script>
 
@@ -203,7 +247,7 @@ page {
 
 .save-btn {
   margin-top: 40px;
-  background-color: #245381; /* 统一色号 */
+  background-color: #245381; 
   color: #fff;
   border-radius: 25px;
   font-size: 16px;
