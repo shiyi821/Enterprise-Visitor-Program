@@ -1,13 +1,6 @@
 <template>
 	<view class="admin-container">
 
-		<view class="debug-bar">
-			<text class="debug-title">当前角色测试：</text>
-			<button class="debug-btn" size="mini" @click="changeRole('admin')">管理员</button>
-			<button class="debug-btn" size="mini" @click="changeRole('host')">被访人</button>
-			<button class="debug-btn" size="mini" @click="changeRole('guard')">门岗安保</button>
-		</view>
-
 		<view class="header-bg">
 			<view class="user-info">
 				<image class="avatar" src="/static/images/my.png"></image>
@@ -116,7 +109,7 @@
 					<view class="icon-wrap bg-red">
 						<image class="icon" src="/static/images/tabbar/news.png"></image>
 					</view>
-					<text class="name">通知管理</text>
+					<text class="name">通知发布</text>
 				</view>
 				<view class="grid-item" @click="navTo('/pages/admin/stats/index')">
 					<view class="icon-wrap bg-yellow">
@@ -139,27 +132,19 @@
 		onShow
 	} from '@dcloudio/uni-app';
 
-	const userRole = ref(uni.getStorageSync('userRole') || 'host');
+	const userRole = ref('host');
 
+	// 每次打开此页面，读取在 my.vue 中已经严谨判定好的角色
 	onShow(() => {
 		userRole.value = uni.getStorageSync('userRole') || 'host';
 	});
 
 	const roleName = computed(() => {
 		if (userRole.value === 'admin') return '管理员';
-		if (userRole.value === 'host') return '被访人';
+		if (userRole.value === 'host') return '员工';
 		if (userRole.value === 'guard') return '门岗';
-		return '';
+		return '工作台';
 	});
-
-	const changeRole = (role) => {
-		userRole.value = role;
-		uni.setStorageSync('userRole', role);
-		uni.showToast({
-			title: `已切换为${roleName.value}`,
-			icon: 'none'
-		});
-	};
 
 	const navTo = (url) => {
 		if (!url) {
@@ -197,7 +182,7 @@
 			success: (res) => {
 				uni.showModal({
 					title: '扫码成功',
-					content: `访客预约码: ${res.result}\n是否确认放行？`
+					content: `访客码: ${res.result}\n是否确认放行？`
 				});
 			}
 		});
@@ -205,38 +190,15 @@
 </script>
 
 <style scoped>
-	/* 样式与原来完全一致，无需变动 */
 	.admin-container {
 		min-height: 100vh;
 		background-color: #f5f7fa;
 		padding-bottom: 40rpx;
 	}
 
-	.debug-bar {
-		background-color: #fff3cd;
-		padding: 10rpx 20rpx;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	.debug-title {
-		font-size: 24rpx;
-		color: #856404;
-		font-weight: bold;
-	}
-
-	.debug-btn {
-		margin: 0;
-		font-size: 20rpx;
-		padding: 0 16rpx;
-		background-color: #ffc107;
-		color: #333;
-	}
-
 	.header-bg {
 		background: linear-gradient(135deg, #007aff 0%, #005bb5 100%);
-		padding: 40rpx 40rpx 100rpx 40rpx;
+		padding: 60rpx 40rpx 100rpx 40rpx;
 		border-bottom-left-radius: 40rpx;
 		border-bottom-right-radius: 40rpx;
 	}
