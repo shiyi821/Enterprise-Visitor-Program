@@ -30,10 +30,10 @@
 					<text class="arrow">></text>
 				</view>
 
-				<view class="menu-item" @click="handleAdminClick">
+				<view class="menu-item" v-if="userInfo.role !== 'visitor'" @click="handleAdminClick">
 					<view class="item-left">
 						<text class="icon">⚙️</text>
-						<text class="item-text">系统后台管理 <text class="sub-text">(点击使用)</text></text>
+						<text class="item-text">系统后台管理 <text class="sub-text">(内部人员专属)</text></text>
 					</view>
 					<text class="arrow">></text>
 				</view>
@@ -61,47 +61,63 @@
 	} from '@dcloudio/uni-app';
 	import {
 		request
-	} from '@/utils/request.js'; // 引入搭档的统一请求工具
+	} from '@/utils/request.js';
 
-	// 登录状态和用户信息
 	const isLoggedIn = ref(false);
 	const userInfo = ref({
 		nickname: '',
 		avatar: '',
-		role: 'admin' // 默认暂时给 admin 方便测试，真实情况由后端返回
+		role: 'visitor'
 	});
 
-	// 核心：每次页面显示时，立刻去后端获取最新数据
 	onShow(async () => {
 		const token = uni.getStorageSync('token');
 		if (token) {
 			isLoggedIn.value = true;
 
-			// 1. 先用本地缓存垫底（防止页面白屏闪烁）
+			// 1. 先用本地缓存垫底
 			const localUserInfo = uni.getStorageSync('userInfo');
 			if (localUserInfo && typeof localUserInfo === 'object') {
 				userInfo.value = localUserInfo;
 			}
 
-			// 2. 向后端请求真实资料，覆盖掉过期的缓存
+			// 2. 向后端请求真实资料
 			try {
 				const res = await request({
 					url: '/api/v1/users/profile',
 					method: 'GET'
 				});
-				if (res && res.data) {
-					// 保留一下 role 以防后端没传导致无法进后台测试
-					const currentRole = userInfo.value.role;
-					userInfo.value = res.data;
-					if (!userInfo.value.role) userInfo.value.role = currentRole;
 
-					uni.setStorageSync('userInfo', userInfo.value);
+				if (res && res.data) {
+					const profile = res.data;
+
+					// 零信任定权逻辑：默认当做访客
+					let parsedRole = 'visitor';
+
+					const roleStr = String(profile.roleNames || '');
+					const deptStr = String(profile.deptName || '');
+
+					if (profile.username === 'admin' || roleStr.includes('管理')) {
+						parsedRole = 'admin';
+					} else if (deptStr.includes('保卫') || roleStr.includes('门卫') || roleStr.includes('门岗')) {
+						parsedRole = 'guard';
+					} else if (profile.deptName) {
+						// 只要有部门（非null），就是内部员工
+						parsedRole = 'host';
+					} else {
+						parsedRole = 'visitor';
+					}
+
+					profile.role = parsedRole;
+					userInfo.value = profile;
+
+					uni.setStorageSync('userInfo', profile);
+					uni.setStorageSync('userRole', parsedRole);
 				}
 			} catch (err) {
 				console.error('主页拉取用户资料失败:', err);
 			}
 
-			// 检查是否有新用户的弹窗标志位
 			const showRegisterTip = uni.getStorageSync('is_new_user_flag');
 			if (showRegisterTip) {
 				uni.removeStorageSync('is_new_user_flag');
@@ -144,6 +160,7 @@
 				if (res.confirm) {
 					uni.removeStorageSync('token');
 					uni.removeStorageSync('userInfo');
+					uni.removeStorageSync('userRole');
 					uni.removeStorageSync('is_new_user_flag');
 
 					isLoggedIn.value = false;
@@ -156,7 +173,6 @@
 		});
 	};
 
-	// ======================== 跳转后台管理拦截逻辑 ========================
 	const handleAdminClick = () => {
 		if (!isLoggedIn.value) {
 			return uni.showToast({
@@ -164,23 +180,20 @@
 				icon: 'none'
 			});
 		}
-
-		// 演示拦截逻辑：如果角色是 visitor 则拒绝
+		// 保底拦截：防止 HTML 被篡改后依然点进来
 		if (userInfo.value.role === 'visitor') {
 			return uni.showModal({
 				title: '权限拒绝',
-				content: '抱歉，系统后台管理仅对企业内部员工开放，普通访客无权访问。',
+				content: '抱歉，系统管理页面仅对企业内部员工开放，普通访客无权访问。',
 				showCancel: false,
 				confirmColor: '#E74C3C'
 			});
 		}
-
 		uni.navigateTo({
 			url: '/pages/admin/admin'
 		});
 	};
 
-	// 通用路由跳转拦截
 	const navigateTo = (url) => {
 		if (!isLoggedIn.value && url !== '/pages/admin/admin') {
 			uni.showToast({
