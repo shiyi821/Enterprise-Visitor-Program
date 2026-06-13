@@ -27,6 +27,7 @@ public enum LogModuleEnum implements IBaseEnum<Integer> {
     NOTICE(9, "通知公告"),
     LOG(10, "日志管理"),
     CODEGEN(11, "代码生成"),
+    VISITOR(12, "访客申请管理"),
     OTHER(99, "其他");
 
     @EnumValue

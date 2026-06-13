@@ -73,7 +73,7 @@
 		<view class="form-group search-group">
 			<text class="label"><text class="required">*</text>到访单位</text>
 			<input class="input" :class="{ 'disabled-input': isAssistMode }" :disabled="isAssistMode"
-				:placeholder="isAssistMode ? '' : '点击查看全部或输入搜索'" v-model="formData.visitDepartment"
+				:placeholder="isAssistMode ? '' : '点击选择或输入搜索'" v-model="formData.visitDepartment"
 				@input="onSearchDepartment" @focus="onDeptFocus" @blur="hideDropdown('dept')" />
 			<scroll-view scroll-y class="dropdown-list"
 				v-if="!isAssistMode && showDeptDropdown && deptOptions.length > 0">
@@ -85,8 +85,8 @@
 
 		<view class="form-group search-group">
 			<text class="label"><text class="required">*</text>被访人</text>
-			<input class="input" :class="{ 'disabled-input': isAssistMode }" :disabled="isAssistMode"
-				:placeholder="isAssistMode ? '' : '点击查看全部或输入搜索'" v-model="formData.hostName" @input="onSearchHost"
+			<input class="input" :class="{ 'disabled-input': isAssistMode || !formData.deptId }" :disabled="isAssistMode"
+				:placeholder="isAssistMode ? '' : (formData.deptId ? '点击选择或输入搜索' : '请先选择到访单位')" v-model="formData.hostName" @input="onSearchHost"
 				@focus="onHostFocus" @blur="hideDropdown('host')" />
 			<scroll-view scroll-y class="dropdown-list"
 				v-if="!isAssistMode && showHostDropdown && hostOptions.length > 0">
@@ -106,21 +106,18 @@
 </template>
 
 <script setup>
-	import {
-		ref,
-		watch
-	} from 'vue';
-	import {
-		onLoad,
-		onShow,
-		onHide
-	} from '@dcloudio/uni-app';
+	import { ref, watch } from 'vue';
+	import { onLoad, onShow, onHide } from '@dcloudio/uni-app';
+	import { request } from '@/utils/request.js';
 
 	const isAssistMode = ref(false);
-	const systemHolidays = ref([]); // 存放系统设置的节假日
+	const systemHolidays = ref([]);
+
+	// 存放后端拉取的数据字典
+	const allDeptOptions = ref([]);
+	const allHostOptions = ref([]); // 当前选定部门下的员工列表
 
 	onShow(() => {
-		// 1. 处理辅助预约状态
 		const isAssist = uni.getStorageSync('isAssistMode');
 		if (isAssist === true) {
 			isAssistMode.value = true;
@@ -128,12 +125,49 @@
 			formData.value.hostName = '李总';
 		}
 
-		// 2. 加载节假日数据
 		const savedHolidays = uni.getStorageSync('system_holidays');
 		if (savedHolidays && Array.isArray(savedHolidays)) {
 			systemHolidays.value = savedHolidays;
 		}
+
+		// 页面显示时，只拉取部门列表，人员留空
+		loadDeptOptions();
 	});
+
+	// 1. 加载部门下拉
+	const loadDeptOptions = async () => {
+		try {
+			const deptRes = await request({ url: '/api/v1/depts/options', method: 'GET' });
+			if (deptRes && deptRes.data) {
+				allDeptOptions.value = deptRes.data.map(item => ({ id: item.value, name: item.label }));
+			}
+		} catch (err) {
+			console.error('加载部门数据失败', err);
+		}
+	};
+
+	// 💡 2. 联动核心：根据选择的部门ID，去后端拉取该部门下的人员
+	const loadHostOptionsByDept = async (deptId) => {
+		if (!deptId) {
+			allHostOptions.value = [];
+			return;
+		}
+		try {
+			// 带着选中的 deptId 去请求后端修改后的新接口
+			const userRes = await request({ 
+				url: `/api/v1/users/options?deptId=${deptId}`, 
+				method: 'GET' 
+			});
+			if (userRes && userRes.data) {
+				allHostOptions.value = userRes.data.map(item => ({ id: item.value, name: item.label }));
+			} else {
+				allHostOptions.value = [];
+			}
+		} catch (err) {
+			console.error('根据部门加载人员数据失败', err);
+			allHostOptions.value = [];
+		}
+	};
 
 	onHide(() => {
 		if (isAssistMode.value) {
@@ -141,6 +175,8 @@
 			isAssistMode.value = false;
 			formData.value.visitDepartment = '';
 			formData.value.hostName = '';
+			formData.value.deptId = '';
+			formData.value.visitedPersonId = '';
 		}
 	});
 
@@ -159,34 +195,30 @@
 		applicantGender: '',
 		applicantCompany: '',
 		visitorCount: 1,
-		visitDepartment: '',
-		hostName: '',
+		deptId: '',            
+		visitDepartment: '',   
+		visitedPersonId: '',   
+		hostName: '',          
 		reason: ''
 	});
 
 	const formData = ref(getInitialData());
 	const companionNames = ref([]);
 
-	// ======== 核心拦截逻辑：节假日判断 ========
 	const onDateChange = (e) => {
 		const selectedDate = e.detail.value;
-
-		// 如果选中的日期在节假日数组中，立刻拦截
 		if (systemHolidays.value.includes(selectedDate)) {
 			uni.showModal({
 				title: '日期不可选',
 				content: `管理员已将 ${selectedDate} 设为休息日，暂不开放来访预约，请重新选择日期。`,
-				showCancel: false, // 只有确定按钮
+				showCancel: false,
 				confirmText: '我知道了'
 			});
-			// 清空选择
 			formData.value.visitDate = '';
 		} else {
-			// 正常日期，允许赋值
 			formData.value.visitDate = selectedDate;
 		}
 	};
-	// ===========================================
 
 	const changeVisitorCount = (num) => {
 		let current = parseInt(formData.value.visitorCount) || 1;
@@ -213,39 +245,32 @@
 		}
 	});
 
+	// ======== 部门下拉逻辑 ========
 	const showDeptDropdown = ref(false);
 	const deptOptions = ref([]);
 	let deptTimer = null;
 
 	const fetchDepartments = (keyword = '') => {
 		if (keyword) {
-			deptOptions.value = [{
-				id: 11,
-				name: `${keyword}技术部`
-			}, {
-				id: 12,
-				name: `${keyword}业务部`
-			}];
+			deptOptions.value = allDeptOptions.value.filter(item => item.name.includes(keyword));
 		} else {
-			deptOptions.value = [{
-				id: 1,
-				name: '集团总部'
-			}, {
-				id: 2,
-				name: '技术研发中心'
-			}, {
-				id: 3,
-				name: '市场运营部'
-			}];
+			deptOptions.value = allDeptOptions.value;
 		}
 	};
 
 	const onSearchDepartment = (e) => {
 		if (isAssistMode.value) return;
+		// 一旦手动输入修改部门，要把之前的关联人员全清空
+		formData.value.deptId = ''; 
+		formData.value.visitedPersonId = '';
+		formData.value.hostName = '';
+		allHostOptions.value = [];
+		
 		const keyword = e.detail.value;
 		clearTimeout(deptTimer);
 		deptTimer = setTimeout(() => {
 			fetchDepartments(keyword);
+			showDeptDropdown.value = true;
 		}, 300);
 	};
 
@@ -256,54 +281,62 @@
 	};
 
 	const selectDepartment = (item) => {
-		formData.value.visitDepartment = item.name;
+		formData.value.deptId = item.id;          
+		formData.value.visitDepartment = item.name; 
 		showDeptDropdown.value = false;
+		
+		// 💡 联动点：选好部门，清空上一个人的值，并立刻去后端查这批新的人
+		formData.value.visitedPersonId = '';
+		formData.value.hostName = '';
+		loadHostOptionsByDept(item.id);
 	};
 
+	// ======== 人员下拉逻辑 ========
 	const showHostDropdown = ref(false);
 	const hostOptions = ref([]);
 	let hostTimer = null;
 
 	const fetchHosts = (keyword = '') => {
 		if (keyword) {
-			hostOptions.value = [{
-				id: 11,
-				name: `${keyword}总监`
-			}, {
-				id: 12,
-				name: `${keyword}经理`
-			}];
+			hostOptions.value = allHostOptions.value.filter(item => item.name.includes(keyword));
 		} else {
-			hostOptions.value = [{
-				id: 1,
-				name: '张三 (前台)'
-			}, {
-				id: 2,
-				name: '李四 (行政)'
-			}, {
-				id: 3,
-				name: '李总 (技术)'
-			}];
+			hostOptions.value = allHostOptions.value;
 		}
 	};
 
 	const onSearchHost = (e) => {
 		if (isAssistMode.value) return;
+		if (!formData.value.deptId) return;
+		formData.value.visitedPersonId = '';
 		const keyword = e.detail.value;
 		clearTimeout(hostTimer);
 		hostTimer = setTimeout(() => {
 			fetchHosts(keyword);
+			showHostDropdown.value = true;
 		}, 300);
 	};
 
 	const onHostFocus = () => {
 		if (isAssistMode.value) return;
+		
+		// 💡 强拦截逻辑：如果不选部门，直接阻止聚焦，并弹窗提示
+		if (!formData.value.deptId) {
+			uni.showToast({
+				title: '请先选择到访单位(部门)',
+				icon: 'none'
+			});
+			// 利用宿主失焦关闭
+			uni.hideKeyboard();
+			return;
+		}
+		
 		showHostDropdown.value = true;
 		fetchHosts(formData.value.hostName);
 	};
 
 	const selectHost = (item) => {
-		formData.value.hostName = item.name;
+		formData.value.visitedPersonId = item.id; 
+		formData.value.hostName = item.name;      
 		showHostDropdown.value = false;
 	};
 
@@ -314,42 +347,18 @@
 		}, 200);
 	};
 
-	const submitApply = () => {
-		const requiredFields = [{
-				key: 'visitDate',
-				msg: '请选择来访日期'
-			}, {
-				key: 'visitTime',
-				msg: '请选择来访时间'
-			},
-			{
-				key: 'applicantName',
-				msg: '请输入申请人姓名'
-			}, {
-				key: 'applicantPhone',
-				msg: '请输入申请人电话'
-			},
-			{
-				key: 'applicantIdCard',
-				msg: '请输入申请人身份证号'
-			}, {
-				key: 'applicantGender',
-				msg: '请选择性别'
-			},
-			{
-				key: 'applicantCompany',
-				msg: '请输入申请人单位'
-			}, {
-				key: 'visitDepartment',
-				msg: '请选择到访单位'
-			},
-			{
-				key: 'hostName',
-				msg: '请选择被访人'
-			}, {
-				key: 'reason',
-				msg: '请输入来访事由'
-			}
+	const submitApply = async () => {
+		const requiredFields = [
+			{ key: 'visitDate', msg: '请选择来访日期' },
+			{ key: 'visitTime', msg: '请选择来访时间' },
+			{ key: 'applicantName', msg: '请输入申请人姓名' },
+			{ key: 'applicantPhone', msg: '请输入申请人电话' },
+			{ key: 'applicantIdCard', msg: '请输入申请人身份证号' },
+			{ key: 'applicantGender', msg: '请选择性别' },
+			{ key: 'applicantCompany', msg: '请输入申请人单位' },
+			{ key: 'deptId', msg: '请选择到访单位' },
+			{ key: 'visitedPersonId', msg: '请选择被访人' },
+			{ key: 'reason', msg: '请输入来访事由' }
 		];
 
 		for (let field of requiredFields) {
@@ -359,30 +368,57 @@
 			});
 		}
 
+		// 组装最终提交给后端的数据，确保字段名与后端的 VisitorApplicationForm 完全一致
 		const submitData = {
-			...formData.value,
-			companions: companionNames.value.filter(name => name.trim() !== '').join(','),
-			isAssist: isAssistMode.value
+		    visitDate: formData.value.visitDate,
+		    visitTime: formData.value.visitTime,
+		    applicantName: formData.value.applicantName,
+		    applicantPhone: formData.value.applicantPhone,
+		    visitorCompany: formData.value.applicantCompany, // 💡 映射：前端的单位 对应 后端的 visitorCompany
+		    visitorCount: formData.value.visitorCount,
+		    visitPurpose: formData.value.reason,             // 💡 映射：前端的事由 对应 后端的 visitPurpose
+		    deptId: formData.value.deptId,
+		    visitedPersonId: formData.value.visitedPersonId,
+		    companionVisitors: companionNames.value.filter(name => name.trim() !== '').join(',')
 		};
 
-		uni.showToast({
-			title: '申请已提交',
-			icon: 'success',
-			duration: 2000
-		});
+		try {
+			uni.showLoading({ title: '提交中...' });
+			const res = await request({
+				url: '/api/v1/visitor-applications', 
+				method: 'POST',
+				data: submitData
+			});
+			
+			uni.hideLoading();
+			uni.showToast({
+				title: '申请已提交',
+				icon: 'success',
+				duration: 2000
+			});
 
-		setTimeout(() => {
-			if (isAssistMode.value) {
-				const currentHost = formData.value.hostName;
-				const currentDept = formData.value.visitDepartment;
-				formData.value = getInitialData();
-				formData.value.hostName = currentHost;
-				formData.value.visitDepartment = currentDept;
-			} else {
-				formData.value = getInitialData();
-			}
-			companionNames.value = [];
-		}, 1000);
+			setTimeout(() => {
+				if (isAssistMode.value) {
+					const currentHost = formData.value.hostName;
+					const currentDept = formData.value.visitDepartment;
+					const currentHostId = formData.value.visitedPersonId;
+					const currentDeptId = formData.value.deptId;
+					
+					formData.value = getInitialData();
+					formData.value.hostName = currentHost;
+					formData.value.visitDepartment = currentDept;
+					formData.value.visitedPersonId = currentHostId;
+					formData.value.deptId = currentDeptId;
+				} else {
+					formData.value = getInitialData();
+				}
+				companionNames.value = [];
+			}, 1000);
+			
+		} catch (err) {
+			uni.hideLoading();
+			console.error('提交申请失败:', err);
+		}
 	};
 </script>
 
@@ -432,7 +468,7 @@
 
 	.disabled-input {
 		background-color: #f5f5f5 !important;
-		color: #888 !important;
+		color: #aaa !important;
 		border-color: #e5e5e5 !important;
 	}
 
