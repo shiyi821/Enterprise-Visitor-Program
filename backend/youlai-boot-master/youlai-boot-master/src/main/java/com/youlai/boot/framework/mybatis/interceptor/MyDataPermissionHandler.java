@@ -212,6 +212,10 @@ public class MyDataPermissionHandler implements DataPermissionHandler {
      * @return 等于表达式
      */
     private Expression buildEqualsExpression(Column column, Long value) {
+        // 💡 核心修复：针对访客 deptId 为 null 的情况，直接跳过拼接，允许查询
+        if (value == null) {
+            return null;
+        }
         EqualsTo equalsTo = new EqualsTo();
         equalsTo.setLeftExpression(column);
         equalsTo.setRightExpression(new LongValue(value));

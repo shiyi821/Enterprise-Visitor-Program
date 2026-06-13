@@ -193,12 +193,29 @@ public class UserController {
                 .doWrite(exportUserList);
     }
 
-    @Operation(summary = "获取用户下拉选项")
-    @GetMapping("/options")
-    public Result<List<Option<String>>> listUserOptions() {
-        List<Option<String>> list = userService.listUserOptions();
-        return Result.success(list);
-    }
+//    @Operation(summary = "获取用户下拉选项")
+//    @GetMapping("/options")
+//    public Result<List<Option<String>>> listUserOptions() {
+//        List<Option<String>> list = userService.listUserOptions();
+//        return Result.success(list);
+//    }
+@Operation(summary = "用户下拉列表")
+@GetMapping("/options")
+public Result<List<Option<String>>> listUserOptions(
+    @Parameter(description = "部门ID") @RequestParam(required = false) Long deptId
+) {
+    // 💡 改造点：如果传了 deptId，就只查该部门下的员工；没传就查全部正常员工
+    List<SysUser> list = userService.list(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysUser>()
+        .eq(SysUser::getStatus, 1)
+        .eq(deptId != null, SysUser::getDeptId, deptId)
+    );
+
+    List<Option<String>> options = list.stream()
+        .map(user -> new Option<>(user.getId().toString(), user.getNickname()))
+        .collect(java.util.stream.Collectors.toList());
+
+    return Result.success(options);
+}
 
     @Operation(summary = "获取个人中心用户信息")
     @GetMapping("/profile")
