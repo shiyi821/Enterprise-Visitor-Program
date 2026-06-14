@@ -6,7 +6,7 @@
 				<image class="avatar" src="/static/images/my.png"></image>
 				<view class="info-text">
 					<text class="title">{{ roleName }}工作台</text>
-					<text class="subtitle">欢迎回来{{ currentNickname || '系统运行良好' }}，一切运行良好</text>
+					<text class="subtitle">欢迎回来，系统运行良好</text>
 				</view>
 			</view>
 		</view>
@@ -131,29 +131,13 @@
 	import {
 		onShow
 	} from '@dcloudio/uni-app';
-	// 引入获取当前登录员工信息的API接口
-	import { getCurrentUserInfo } from '@/api/employee.js';
 
 	const userRole = ref('host');
-	const currentNickname = ref(''); // 响应式变量，存储当前登录用户的昵称
 
-	// 每次打开此页面，读取判定好的角色，并向后端请求最新登录用户信息
+	// 每次打开此页面，读取在 my.vue 中已经严谨判定好的角色
 	onShow(() => {
 		userRole.value = uni.getStorageSync('userRole') || 'host';
-		fetchCurrentUserInfo();
 	});
-
-	// 调用异步接口获取当前人信息并绑定到工作台欢迎语
-	const fetchCurrentUserInfo = async () => {
-		try {
-			const res = await getCurrentUserInfo();
-			if (res.code === '00000' && res.data) {
-				currentNickname.value = res.data.nickname;
-			}
-		} catch (error) {
-			console.error('获取工作台动态用户信息异常:', error);
-		}
-	};
 
 	const roleName = computed(() => {
 		if (userRole.value === 'admin') return '管理员';

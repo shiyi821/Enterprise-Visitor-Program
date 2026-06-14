@@ -96,36 +96,28 @@
 			}
 		},
 		{
-			"path": "pages/admin/dept/list",
-			"style": {
-				"navigationBarTitleText": "部门管理",
-				"navigationBarBackgroundColor": "#0066ce",
-				"navigationBarTextStyle": "black"
-			}
+		  "path": "pages/admin/dept/list",
+		  "style": {
+		    "navigationBarTitleText": "部门管理",
+		    "navigationBarBackgroundColor": "#0066ce",
+		    "navigationBarTextStyle": "black"
+		  }
 		},
 		{
-			"path": "pages/admin/employee/list",
-			"style": {
-				"navigationBarTitleText": "员工管理",
-				"navigationBarBackgroundColor": "#0066ce",
-				"navigationBarTextStyle": "black"
-			}
+		  "path": "pages/admin/employee/list",
+		  "style": {
+		    "navigationBarTitleText": "员工管理",
+		    "navigationBarBackgroundColor": "#0066ce",
+		    "navigationBarTextStyle": "black"
+		  }
 		},
 		{
-			"path": "pages/admin/holiday/index",
-			"style": {
-				"navigationBarTitleText": "节假日管理",
-				"navigationBarBackgroundColor": "#0066ce",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/my/password",
-			"style": {
-				"navigationBarTitleText": "修改密码",
-				"navigationBarBackgroundColor": "#245381",
-				"navigationBarTextStyle": "white"
-			}
+		  "path": "pages/admin/holiday/index",
+		  "style": {
+		    "navigationBarTitleText": "节假日管理",
+		    "navigationBarBackgroundColor": "#0066ce",
+		    "navigationBarTextStyle": "black"
+		  }
 		}
 	],
 	"globalStyle": {

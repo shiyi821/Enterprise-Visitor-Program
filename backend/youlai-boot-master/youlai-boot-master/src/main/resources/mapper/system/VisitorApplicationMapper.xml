@@ -9,8 +9,8 @@
     <select id="getApplicationPage" resultType="com.youlai.boot.system.model.vo.VisitorApplicationPageVO" databaseId="mysql">
         SELECT
         va.id,
-        va.visit_date,
-        va.visit_time,
+        va.visit_date AS visitDate,
+        va.visit_time AS visitTime,
         va.dept_id,
         d.name AS deptName,
         va.applicant_name AS applicantName,
@@ -20,6 +20,8 @@
         va.visited_person_id AS visitedPersonId,
         u.nickname AS visitedPersonName,
         va.visitor_company AS visitorCompany,
+        va.visited_person_approval_status AS visitedPersonApprovalStatus,
+        va.admin_approval_status AS adminApprovalStatus,
         va.application_status AS applicationStatus,
         va.create_time AS createTime
         FROM
@@ -34,9 +36,6 @@
                 OR va.visit_purpose LIKE CONCAT('%',#{queryParams.keywords},'%')
                 )
             </if>
-            <if test='queryParams.status!=null'>
-                AND va.application_status = #{queryParams.status}
-            </if>
             <if test='queryParams.deptId!=null'>
                 AND va.dept_id = #{queryParams.deptId}
             </if>
@@ -49,6 +48,34 @@
                     <bind name="endDate" value="queryParams.createTime[1].length() == 10 ? queryParams.createTime[1] + ' 23:59:59' : queryParams.createTime[1]"/>
                     AND va.create_time &lt;= #{endDate}
                 </if>
+            </if>
+            <if test='queryParams.userId != null'>
+                AND va.user_id = #{queryParams.userId}
+            </if>
+            <if test='queryParams.visitedPersonApprovalStatus != null'>
+                AND va.visited_person_approval_status = #{queryParams.visitedPersonApprovalStatus}
+            </if>
+            <if test='queryParams.adminApprovalStatus != null'>
+                AND va.admin_approval_status = #{queryParams.adminApprovalStatus}
+            </if>
+            <if test='queryParams.applicationStatus != null'>
+                AND va.application_status = #{queryParams.applicationStatus}
+            </if>
+            <if test='queryParams.visitedPersonId != null'>
+                AND va.visited_person_id = #{queryParams.visitedPersonId}
+            </if>
+
+            <if test='queryParams.tabType == "todo"'>
+                AND va.visited_person_approval_status = 0
+                AND va.application_status = 0
+            </if>
+            <if test='queryParams.tabType == "processing"'>
+                AND va.visited_person_approval_status = 1
+                AND va.admin_approval_status = 0
+                AND va.application_status = 0
+            </if>
+            <if test='queryParams.tabType == "done"'>
+                AND (va.visited_person_approval_status = 2 OR va.admin_approval_status != 0)
             </if>
         </where>
         <choose>

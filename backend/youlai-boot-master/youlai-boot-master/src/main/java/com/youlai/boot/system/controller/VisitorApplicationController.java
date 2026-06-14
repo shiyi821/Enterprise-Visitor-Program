@@ -81,4 +81,39 @@ public class VisitorApplicationController {
         return Result.judge(result);
     }
 
+    @Operation(summary = "被访人视角-获取审批分页列表")
+    @GetMapping("/audit")
+    public PageResult<VisitorApplicationPageVO> getAuditApplicationList(@Valid VisitorApplicationQuery queryParams) {
+        return PageResult.success(visitorApplicationService.getAuditApplicationPage(queryParams));
+    }
+
+    @Operation(summary = "被访人视角-执行审批(同意/拒绝)")
+    @PutMapping("/{id}/audit")
+    @Log(module = LogModuleEnum.VISITOR, value = ActionTypeEnum.UPDATE)
+    public Result<Void> auditApplication(
+        @Parameter(description = "申请ID") @PathVariable Long id,
+        @Parameter(description = "审批动作：1同意，2拒绝") @RequestParam Integer action
+    ) {
+        boolean result = visitorApplicationService.auditApplication(id, action);
+        return Result.judge(result);
+    }
+    @Operation(summary = "管理员审批列表")
+    @GetMapping("/admin-approval")
+    @Log(module = LogModuleEnum.VISITOR, value = ActionTypeEnum.LIST)
+    public PageResult<VisitorApplicationPageVO> getAdminApprovalList(
+        @Valid VisitorApplicationQuery queryParams
+    ) {
+        return PageResult.success(visitorApplicationService.getAdminApprovalPage(queryParams));
+    }
+
+    @Operation(summary = "管理员审批（同意/拒绝）")
+    @PutMapping("/{id}/admin-audit")
+    @Log(module = LogModuleEnum.VISITOR, value = ActionTypeEnum.UPDATE)
+    public Result<Void> adminAuditApplication(
+        @Parameter(description = "申请ID") @PathVariable Long id,
+        @Parameter(description = "操作类型：1-同意，2-拒绝") @RequestParam Integer action
+    ) {
+        boolean result = visitorApplicationService.adminAuditApplication(id, action);
+        return Result.judge(result);
+    }
 }
