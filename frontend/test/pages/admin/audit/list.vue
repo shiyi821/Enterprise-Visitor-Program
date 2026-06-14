@@ -1,205 +1,252 @@
 <template>
 	<view class="audit-container">
-
 		<view class="tabs">
-			<view class="tab-item" :class="{ active: currentTab === 'todo' }" @click="currentTab = 'todo'">
-				<text>待我审批</text>
-				<view class="tab-line" v-if="currentTab === 'todo'"></view>
-			</view>
-			<view class="tab-item" :class="{ active: currentTab === 'processing' }" @click="currentTab = 'processing'">
-				<text>审批中</text>
-				<view class="tab-line" v-if="currentTab === 'processing'"></view>
-			</view>
-			<view class="tab-item" :class="{ active: currentTab === 'done' }" @click="currentTab = 'done'">
-				<text>已结束</text>
-				<view class="tab-line" v-if="currentTab === 'done'"></view>
-			</view>
+		    <view 
+		        v-for="tab in tabList" 
+		        :key="tab.id"
+		        class="tab-item" 
+		        :class="{ active: currentTab === tab.id }" 
+		        @click="switchTab(tab.id)"
+		    >
+		        <text>{{ tab.name }}</text>
+		        <view class="tab-line" v-if="currentTab === tab.id"></view>
+		    </view>
 		</view>
 
 		<scroll-view scroll-y class="list-area">
-			<view v-if="filteredList.length === 0" class="empty-box">
+			<view v-if="recordList.length === 0" class="empty-box">
 				<image src="/static/images/tabbar/task.png" class="empty-icon"></image>
 				<text>暂无相关审批记录</text>
 			</view>
 
-			<view class="card" v-for="item in filteredList" :key="item.id" @click="navToDetail(item.id)">
+			<view class="card" v-for="item in recordList" :key="item.id" @click="navToDetail(item.id)">
 				<view class="card-top">
 					<text class="time">到访时间：{{ item.visitDate }} {{ item.visitTime }}</text>
-					<text class="status-tag" :class="'status-' + item.status">
-						{{ getStatusText(item.status) }}
+					<text class="status-tag" :class="getStatusClass(item)">
+						{{ getStatusText(item) }}
 					</text>
 				</view>
 
 				<view class="card-content">
-					<view class="row"><text class="label">访客姓名：</text><text class="value">{{ item.visitorName }}
-							({{ item.phone }})</text></view>
-					<view class="row"><text class="label">来访单位：</text><text class="value">{{ item.company }}</text>
+					<view class="row">
+						<text class="label">访客姓名：</text>
+						<text class="value">{{ item.applicantName || '未填写' }} ({{ item.applicantPhone || '无电话' }})</text>
 					</view>
-					<view class="row"><text class="label">被 访 人：</text><text class="value highlight">{{ item.hostName }}
-							({{ item.hostDept }})</text></view>
-					<view class="row"><text class="label">来访事由：</text><text class="value">{{ item.reason }}</text>
+					<view class="row">
+						<text class="label">来访单位：</text>
+						<text class="value">{{ item.visitorCompany || '个人/无' }}</text>
+					</view>
+					<view class="row">
+						<text class="label">来访事由：</text>
+						<text class="value">{{ item.visitPurpose || '事由未填写' }}</text>
 					</view>
 				</view>
 
-				<view class="card-bottom" v-if="canAudit(item)">
-					<button class="btn btn-reject" @click.stop="doAudit(item.id, 'reject')">拒绝</button>
-					<button class="btn btn-pass" @click.stop="doAudit(item.id, 'pass')">同意</button>
+				<view class="card-bottom" v-if="
+				    (userRole === 'host' && item.visitedPersonApprovalStatus === 0)
+				    || (userRole === 'admin' && item.adminApprovalStatus === 0)
+				">
+				    <button class="btn btn-reject" @click.stop="doAudit(item.id, 2)">拒绝</button>
+				    <button class="btn btn-pass" @click.stop="doAudit(item.id, 1)">同意</button>
 				</view>
 			</view>
+            
+			<view class="load-more" v-if="recordList.length > 0">
+				{{ hasMore ? '加载中...' : '— 到底啦 —' }}
+			</view>
 		</scroll-view>
-
 	</view>
 </template>
-
 <script setup>
-	import {
-		ref,
-		computed
-	} from 'vue';
-	import {
-		onShow
-	} from '@dcloudio/uni-app';
+import { ref, computed } from 'vue';
+import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
+import { request } from '@/utils/request.js';
 
-	const userRole = ref('');
-	const currentHostName = '李总';
+// ========== 1. 角色与Tab配置 ==========
+const userRole = ref('');
+onShow(() => {
+    userRole.value = uni.getStorageSync('userRole') || 'host';
+    resetAndFetch();
+});
 
-	onShow(() => {
-		userRole.value = uni.getStorageSync('userRole') || 'host';
-	});
+// 【核心调整1】统一Tab命名逻辑，被访人侧保留「我」的视角，管理员侧保持原有
+const tabList = computed(() => {
+    if (userRole.value === 'admin') {
+        return [
+            { id: 'todo', name: '待审批' },
+            { id: 'passed', name: '已同意' },
+            { id: 'rejected', name: '已拒绝' }
+        ];
+    }
+    // 被访人侧Tab调整：待我审批 / 我已同意 / 已拒绝（和管理员逻辑对齐）
+    return [
+        { id: 'todo', name: '待我审批' },
+        { id: 'passed', name: '我已同意' },
+        { id: 'rejected', name: '已拒绝' }
+    ];
+});
 
-	const currentTab = ref('todo');
+const currentTab = ref('todo');
+const recordList = ref([]);
+const pageNum = ref(1);
+const pageSize = ref(10);
+const hasMore = ref(true);
 
-	const allData = ref([{
-			id: 1,
-			visitorName: '张三',
-			phone: '13800138001',
-			company: '腾讯科技',
-			hostName: '李总',
-			hostDept: '技术部',
-			reason: '项目洽谈',
-			visitDate: '2023-11-20',
-			visitTime: '14:00',
-			status: 0
-		},
-		{
-			id: 2,
-			visitorName: '王五',
-			phone: '13900139002',
-			company: '阿里巴巴',
-			hostName: '赵总',
-			hostDept: '市场部',
-			reason: '市场合作',
-			visitDate: '2023-11-21',
-			visitTime: '10:00',
-			status: 0
-		},
-		{
-			id: 3,
-			visitorName: '李四',
-			phone: '13700137003',
-			company: '字节跳动',
-			hostName: '李总',
-			hostDept: '技术部',
-			reason: '面试',
-			visitDate: '2023-11-22',
-			visitTime: '09:30',
-			status: 1
-		},
-		{
-			id: 4,
-			visitorName: '赵六',
-			phone: '13600136004',
-			company: '个人',
-			hostName: '李总',
-			hostDept: '技术部',
-			reason: '送文件',
-			visitDate: '2023-11-18',
-			visitTime: '16:00',
-			status: 3
-		},
-		{
-			id: 5,
-			visitorName: '孙七',
-			phone: '13500135005',
-			company: '推销公司',
-			hostName: '李总',
-			hostDept: '技术部',
-			reason: '推销产品',
-			visitDate: '2023-11-19',
-			visitTime: '11:00',
-			status: 2
-		}
-	]);
+// ========== 2. 切换Tab ==========
+const switchTab = (tab) => {
+    if (currentTab.value === tab) return;
+    currentTab.value = tab;
+    resetAndFetch();
+};
 
-	const getStatusText = (status) => {
-		const map = {
-			0: '待被访人审批',
-			1: '待管理员审批',
-			2: '被访人已拒绝',
-			3: '审批通过 (待到访)',
-			4: '管理员已拒绝'
-		};
-		return map[status] || '未知状态';
-	};
+// 【核心调整2】重构被访人侧的查询参数，对应新Tab的状态逻辑
+const buildQueryParams = () => {
+    const params = {
+        pageNum: pageNum.value,
+        pageSize: pageSize.value
+    };
 
-	const canAudit = (item) => {
-		if (userRole.value === 'host' && item.status === 0) return true;
-		if (userRole.value === 'admin' && item.status === 1) return true;
-		return false;
-	};
+    if (userRole.value === 'admin') {
+        // 管理员视角（保持原有逻辑）
+        if (currentTab.value === 'todo') {
+            params.visitedPersonApprovalStatus = 1;
+            params.adminApprovalStatus = 0;
+        } else if (currentTab.value === 'passed') {
+            params.adminApprovalStatus = 1;
+        } else if (currentTab.value === 'rejected') {
+            params.applicationStatus = 2;
+        }
+    } else {
+        // 被访人视角（新逻辑）
+        if (currentTab.value === 'todo') {
+            // 待我审批：被访人未审批
+            params.visitedPersonApprovalStatus = 0;
+        } else if (currentTab.value === 'passed') {
+            // 我已同意：被访人已审批通过（不管管理员后续状态）
+            params.visitedPersonApprovalStatus = 1;
+        } else if (currentTab.value === 'rejected') {
+            // 已拒绝：被访人拒绝 OR 管理员拒绝（两种拒绝都展示）
+            params.rejectType = 'all'; // 后端需支持该参数，或直接传以下两个状态
+            // 若后端不支持rejectType，可拆分为：
+            // params.$or = [
+            //   { visitedPersonApprovalStatus: 2 },
+            //   { adminApprovalStatus: 2 }
+            // ]
+        }
+    }
+    return params;
+};
 
-	const filteredList = computed(() => {
-		let list = allData.value;
+// ========== 3. 拉取列表（保持原有逻辑） ==========
+const fetchAuditList = async (append = false) => {
+    try {
+        const url = userRole.value === 'admin'
+            ? '/api/v1/visitor-applications/admin-approval'
+            : '/api/v1/visitor-applications/audit';
 
-		if (userRole.value === 'host') {
-			list = list.filter(item => item.hostName === currentHostName);
-		}
+        const res = await request({
+            url: url,
+            method: 'GET',
+            data: buildQueryParams()
+        });
 
-		return list.filter(item => {
-			if (currentTab.value === 'todo') {
-				return userRole.value === 'host' ? item.status === 0 : item.status === 1;
-			} else if (currentTab.value === 'processing') {
-				return userRole.value === 'host' ? item.status === 1 : item.status === 0;
-			} else if (currentTab.value === 'done') {
-				return [2, 3, 4].includes(item.status);
-			}
-			return true;
-		});
-	});
+        if (res) {
+            const rows = res.data?.list || res.list || [];
+            const total = res.data?.total || res.total || 0;
+            
+            if (append) {
+                recordList.value = [...recordList.value, ...rows];
+            } else {
+                recordList.value = rows;
+            }
+            hasMore.value = recordList.value.length < total;
+        }
+    } catch (err) {
+        console.error('获取审批列表失败:', err);
+    } finally {
+        uni.stopPullDownRefresh();
+    }
+};
 
-	const doAudit = (id, action) => {
-		const actionText = action === 'pass' ? '同意' : '拒绝';
-		uni.showModal({
-			title: '审批确认',
-			content: `确定要 ${actionText} 该访客的申请吗？`,
-			success: (res) => {
-				if (res.confirm) {
-					const index = allData.value.findIndex(item => item.id === id);
-					if (index > -1) {
-						const item = allData.value[index];
-						if (action === 'pass') {
-							item.status = userRole.value === 'host' ? 1 : 3;
-						} else {
-							item.status = userRole.value === 'host' ? 2 : 4;
-						}
-						uni.showToast({
-							title: '操作成功',
-							icon: 'success'
-						});
-					}
-				}
-			}
-		});
-	};
+// ========== 4. 重置并刷新（保持原有逻辑） ==========
+const resetAndFetch = () => {
+    pageNum.value = 1;
+    hasMore.value = true;
+    recordList.value = [];
+    fetchAuditList(false);
+};
 
-	// 【修改点3】添加跳转到详情页的方法
-	const navToDetail = (id) => {
-		uni.navigateTo({
-			url: `/pages/admin/detail/detail?id=${id}`
-		});
-	};
+// ========== 5. 审批操作（保持原有逻辑） ==========
+const doAudit = (id, actionStatus) => {
+    const actionText = actionStatus === 1 ? '同意' : '拒绝';
+    uni.showModal({
+        title: '审批确认',
+        content: `确定要 ${actionText} 该访客的申请吗？`,
+        confirmColor: actionStatus === 1 ? '#007aff' : '#f5222d',
+        success: async (res) => {
+            if (res.confirm) {
+                try {
+                    uni.showLoading({ title: '处理中...' });
+                    
+                    const url = userRole.value === 'admin'
+                        ? `/api/v1/visitor-applications/${id}/admin-audit?action=${actionStatus}`
+                        : `/api/v1/visitor-applications/${id}/audit?action=${actionStatus}`;
+
+                    await request({ url, method: 'PUT' });
+                    
+                    uni.hideLoading();
+                    uni.showToast({ title: '操作成功', icon: 'success', duration: 1500 });
+                    setTimeout(() => resetAndFetch(), 500);
+                } catch (error) {
+                    uni.hideLoading();
+                    uni.showToast({ title: '审批失败', icon: 'none' });
+                    console.error('审批请求失败:', error);
+                }
+            }
+        }
+    });
+};
+
+// 【核心调整3】优化状态文本，清晰区分拒绝主体（被访人/管理员）
+const getStatusText = (item) => {
+    // 优先判断拒绝状态（最易混淆的场景）
+    if (item.visitedPersonApprovalStatus === 2) return '我已拒绝'; // 被访人自己拒绝
+    if (item.adminApprovalStatus === 2) return '管理员已拒绝'; // 管理员拒绝
+    // 已完成（来访结束）
+    if (item.applicationStatus === 1) return '已来访';
+    // 待审批状态
+    if (item.visitedPersonApprovalStatus === 0) return '待我审批';
+    if (item.visitedPersonApprovalStatus === 1 && item.adminApprovalStatus === 0) return '待管理员审批';
+    if (item.visitedPersonApprovalStatus === 1 && item.adminApprovalStatus === 1) return '待来访';
+    return '未知状态';
+};
+
+// 【微调】状态样式类，拒绝状态统一用reject（区分来源靠文本，样式统一）
+const getStatusClass = (item) => {
+    if (item.visitedPersonApprovalStatus === 2 || item.adminApprovalStatus === 2) return 'status-reject';
+    if (item.applicationStatus === 1) return 'status-done';
+    if (item.visitedPersonApprovalStatus === 0 || item.adminApprovalStatus === 0) return 'status-todo';
+    return 'status-processing';
+};
+
+// 下拉刷新、触底加载、跳转详情（保持原有逻辑）
+onReachBottom(() => {
+    if (!hasMore.value) return;
+    pageNum.value++;
+    fetchAuditList(true);
+});
+
+onPullDownRefresh(() => {
+    resetAndFetch();
+});
+
+const navToDetail = (id) => {
+    uni.navigateTo({
+        url: `/pages/admin/detail/detail?id=${id}`,
+        fail: () => uni.showToast({ title: '详情页暂未开发', icon: 'none' })
+    });
+};
 </script>
-
 <style scoped>
 	.audit-container {
 		display: flex;
@@ -293,26 +340,10 @@
 		font-weight: bold;
 	}
 
-	.status-0 {
-		background-color: #fff7e6;
-		color: #fa8c16;
-	}
-
-	.status-1 {
-		background-color: #e6f7ff;
-		color: #1890ff;
-	}
-
-	.status-2,
-	.status-4 {
-		background-color: #fff1f0;
-		color: #f5222d;
-	}
-
-	.status-3 {
-		background-color: #f6ffed;
-		color: #52c41a;
-	}
+	.status-todo { background-color: #fff7e6; color: #fa8c16; }
+	.status-processing { background-color: #e6f7ff; color: #1890ff; }
+	.status-reject { background-color: #fff1f0; color: #f5222d; }
+	.status-done { background-color: #f6ffed; color: #52c41a; }
 
 	.card-content .row {
 		display: flex;
@@ -330,11 +361,6 @@
 	.card-content .value {
 		color: #333;
 		flex: 1;
-	}
-
-	.card-content .highlight {
-		color: #007aff;
-		font-weight: bold;
 	}
 
 	.card-bottom {
@@ -366,5 +392,12 @@
 
 	button::after {
 		border: none;
+	}
+	
+	.load-more {
+		text-align: center;
+		padding: 20rpx;
+		font-size: 24rpx;
+		color: #999;
 	}
 </style>

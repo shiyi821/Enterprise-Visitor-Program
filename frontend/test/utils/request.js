@@ -29,46 +29,10 @@ export const request = (options) => {
       success: (res) => {
         // HTTP 状态码 200 表示服务器响应成功
         if (res.statusCode === 200) {
-          const data = res.data;
-
-          // ========== 令牌过期全局拦截 ==========
-          if (data.code === 'A0230') {
-            // 先清除所有登录缓存
-            uni.removeStorageSync('token');
-            uni.removeStorageSync('userInfo');
-            uni.removeStorageSync('userRole');
-            uni.removeStorageSync('is_new_user_flag');
-
-            // 全局标记，防止多接口并发时重复弹窗跳转
-            const app = getApp();
-            app.globalData = app.globalData || {};
-            if (!app.globalData.isTokenExpired) {
-              app.globalData.isTokenExpired = true;
-
-              uni.showToast({
-                title: '登录已过期，请重新登录',
-                icon: 'none',
-                duration: 1500
-              });
-
-              setTimeout(() => {
-                uni.reLaunch({
-                  url: '/pages/login/login',
-                  complete: () => {
-                    app.globalData.isTokenExpired = false;
-                  }
-                });
-              }, 1500);
-            }
-
-            reject(data);
-            return;
-          }
-
-          resolve(data); // 将后端返回的自定义全局结果（如 code, data, msg）返回给上一层
+          resolve(res.data); // 将后端返回的自定义全局结果（如 code, data, msg）返回给上一层
         } else {
           uni.showToast({
-            title: res.data?.msg || '服务器响应异常',
+            title: res.data.msg || '服务器响应异常',
             icon: 'none'
           });
           reject(res.data);
