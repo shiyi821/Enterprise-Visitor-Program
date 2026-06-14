@@ -100,7 +100,7 @@
 			"style": {
 				"navigationBarTitleText": "部门管理",
 				"navigationBarBackgroundColor": "#0066ce",
-				"navigationBarTextStyle": "black"
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
@@ -108,7 +108,7 @@
 			"style": {
 				"navigationBarTitleText": "员工管理",
 				"navigationBarBackgroundColor": "#0066ce",
-				"navigationBarTextStyle": "black"
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
@@ -116,7 +116,7 @@
 			"style": {
 				"navigationBarTitleText": "节假日管理",
 				"navigationBarBackgroundColor": "#0066ce",
-				"navigationBarTextStyle": "black"
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
