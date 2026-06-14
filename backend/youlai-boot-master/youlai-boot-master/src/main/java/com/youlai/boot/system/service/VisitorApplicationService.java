@@ -48,4 +48,12 @@ public interface VisitorApplicationService extends IService<VisitorApplication> 
      * @return 操作结果
      */
     boolean deleteApplications(String ids);
+
+    boolean auditApplication(Long id, Integer action);
+
+    IPage<VisitorApplicationPageVO> getAuditApplicationPage(VisitorApplicationQuery queryParams);
+
+    IPage<VisitorApplicationPageVO> getAdminApprovalPage(VisitorApplicationQuery queryParams);
+
+    boolean adminAuditApplication(Long id, Integer action);
 }

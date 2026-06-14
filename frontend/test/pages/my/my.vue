@@ -38,14 +38,6 @@
 					<text class="arrow">></text>
 				</view>
 
-				<view class="menu-item" @click="navigateTo('/pages/my/password')">
-					<view class="item-left">
-						<text class="icon">🔒</text>
-						<text class="item-text">修改密码</text>
-					</view>
-					<text class="arrow">></text>
-				</view>
-
 				<view class="menu-item" @click="showAbout">
 					<view class="item-left">
 						<text class="icon">👥</text>

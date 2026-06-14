@@ -89,6 +89,10 @@ public class VisitorApplication extends BaseEntity {
      * 门卫ID
      */
     private Long guardId;
+    /**
+     * 用户ID
+     */
+    private Long userId;
 
     /**
      * 申请整体状态
@@ -138,5 +142,7 @@ public class VisitorApplication extends BaseEntity {
      */
     @TableField(exist = false)
     private String applicationStatusText;
+
+
 
 }
