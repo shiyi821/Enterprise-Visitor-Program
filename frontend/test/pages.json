@@ -134,7 +134,7 @@
 				"navigationBarBackgroundColor": "#245381",
 				"navigationBarTextStyle": "white"
 			}
-		},
+		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "white",
