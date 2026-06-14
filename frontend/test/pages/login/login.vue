@@ -37,10 +37,6 @@
 				<button class="submit-btn" @click="handleSubmit">
 					{{ isLogin ? '立即登录' : '同意协议并注册' }}
 				</button>
-				
-				<view class="footer-links" v-if="isLogin">
-					<text class="link-text">忘记密码？</text>
-				</view>
 			</view>
 		</view>
 	</view>
@@ -284,16 +280,5 @@ const doLogin = async () => {
 
 .submit-btn::after {
 	border: none;
-}
-
-.footer-links {
-	display: flex;
-	justify-content: center;
-	margin-top: 40rpx;
-}
-
-.link-text {
-	font-size: 26rpx;
-	color: #95A5A6;
 }
 </style>

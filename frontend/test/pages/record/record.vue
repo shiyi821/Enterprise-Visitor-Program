@@ -27,11 +27,7 @@
 
     <scroll-view class="list-container">
       <view v-if="recordList.length > 0">
-<<<<<<< HEAD
-        <view v-for="item in recordList" :key="item.id" class="record-card">
-=======
         <view v-for="item in recordList" :key="item.id" class="record-card" @click="navToDetail(item.id)">
->>>>>>> 7346fa46142b44efef66b7a4602a0520416d7322
           <view class="card-header">
             <view class="visitor-info">
               <text class="name">{{ item.applicantName || '未填写' }}</text>
