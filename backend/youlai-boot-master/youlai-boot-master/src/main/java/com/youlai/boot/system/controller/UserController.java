@@ -70,7 +70,7 @@ public class UserController {
 
     @Operation(summary = "新增用户")
     @PostMapping
-    @PreAuthorize("@ss.hasPerm('sys:user:create')")
+    //@PreAuthorize("@ss.hasPerm('sys:user:create')")
     @RepeatSubmit
     @Log(module = LogModuleEnum.USER, value = ActionTypeEnum.INSERT)
     public Result<?> saveUser(
@@ -82,7 +82,7 @@ public class UserController {
 
     @Operation(summary = "获取用户表单数据")
     @GetMapping("/{userId}/form")
-    @PreAuthorize("@ss.hasPerm('sys:user:update')")
+    //@PreAuthorize("@ss.hasPerm('sys:user:update')")
     public Result<UserForm> getUserForm(
             @Parameter(description = "用户ID") @PathVariable Long userId
     ) {
@@ -92,7 +92,7 @@ public class UserController {
 
     @Operation(summary = "修改用户")
     @PutMapping(value = "/{userId}")
-    @PreAuthorize("@ss.hasPerm('sys:user:update')")
+    //@PreAuthorize("@ss.hasPerm('sys:user:update')")
     @Log(module = LogModuleEnum.USER, value = ActionTypeEnum.UPDATE)
     public Result<Void> updateUser(
             @Parameter(description = "用户ID") @PathVariable Long userId,
@@ -104,7 +104,7 @@ public class UserController {
 
     @Operation(summary = "删除用户")
     @DeleteMapping("/{ids}")
-    @PreAuthorize("@ss.hasPerm('sys:user:delete')")
+    //@PreAuthorize("@ss.hasPerm('sys:user:delete')")
     @Log(module = LogModuleEnum.USER, value = ActionTypeEnum.DELETE)
     public Result<Void> deleteUsers(
             @Parameter(description = "用户ID，多个以英文逗号(,)分割") @PathVariable String ids
@@ -115,7 +115,7 @@ public class UserController {
 
     @Operation(summary = "修改用户状态")
     @PatchMapping(value = "/{userId}/status")
-    @PreAuthorize("@ss.hasPerm('sys:user:update')")
+    //@PreAuthorize("@ss.hasPerm('sys:user:update')")
     @Log(module = LogModuleEnum.USER, value = ActionTypeEnum.UPDATE)
     public Result<Void> updateUserStatus(
             @Parameter(description = "用户ID") @PathVariable Long userId,
@@ -134,7 +134,7 @@ public class UserController {
 
     @Operation(summary = "重置指定用户密码")
     @PutMapping(value = "/{userId}/password/reset")
-    @PreAuthorize("@ss.hasPerm('sys:user:reset-password')")
+    //@PreAuthorize("@ss.hasPerm('sys:user:reset-password')")
     @Log(module = LogModuleEnum.USER, value = ActionTypeEnum.RESET_PASSWORD)
     public Result<?> resetUserPassword(
             @Parameter(description = "用户ID") @PathVariable Long userId,
@@ -171,7 +171,7 @@ public class UserController {
 
     @Operation(summary = "导入用户")
     @PostMapping("/import")
-    @PreAuthorize("@ss.hasPerm('sys:user:import')")
+    //@PreAuthorize("@ss.hasPerm('sys:user:import')")
     @Log(module = LogModuleEnum.USER, value = ActionTypeEnum.IMPORT)
     public Result<ExcelResult> importUsers(MultipartFile file) throws IOException {
         UserImportListener listener = new UserImportListener();
@@ -181,7 +181,7 @@ public class UserController {
 
     @Operation(summary = "导出用户")
     @GetMapping("/export")
-    @PreAuthorize("@ss.hasPerm('sys:user:export')")
+   // @PreAuthorize("@ss.hasPerm('sys:user:export')")
     @Log(module = LogModuleEnum.USER, value = ActionTypeEnum.EXPORT)
     public void exportUsers(UserQuery queryParams, HttpServletResponse response) throws IOException {
         String fileName = "用户列表.xlsx";

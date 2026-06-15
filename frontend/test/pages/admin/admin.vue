@@ -13,15 +13,22 @@
 
 		<view class="data-card" v-if="userRole !== 'guard'">
 			<view class="data-item">
-				<text class="num text-blue">12</text>
-				<text class="label">今日访客</text>
+				<text class="num text-blue">{{ stats.totalVisitorCount }}</text>
+				<text class="label">到访人数</text>
 			</view>
-			<view class="data-item">
-				<text class="num text-orange">5</text>
-				<text class="label">待办审批</text>
-			</view>
+			
 			<view class="data-item" v-if="userRole === 'admin'">
-				<text class="num text-green">128</text>
+				<text class="num text-orange">{{ stats.adminPendingCount }}</text>
+				<text class="label">待管理审核</text>
+			</view>
+			
+			<view class="data-item">
+				<text class="num text-pink">{{ stats.hostPendingCount }}</text>
+				<text class="label">{{ userRole === 'host' ? '待我审核' : '待员工审核' }}</text>
+			</view>
+			
+			<view class="data-item" v-if="userRole === 'admin'">
+				<text class="num text-green">{{ stats.employeeCount }}</text>
 				<text class="label">在职员工</text>
 			</view>
 		</view>
@@ -133,14 +140,28 @@
 	} from '@dcloudio/uni-app';
 	// 引入获取当前登录员工信息的API接口
 	import { getCurrentUserInfo } from '@/api/employee.js';
+	// 引入刚刚封装的管理台统计API
+	import { getDashboardStats } from '@/api/admin.js';
 
 	const userRole = ref('host');
 	const currentNickname = ref(''); // 响应式变量，存储当前登录用户的昵称
+	
+	// 定义响应式的统计数据源
+	const stats = ref({
+		totalVisitorCount: 0,
+		adminPendingCount: 0,
+		hostPendingCount: 0,
+		employeeCount: 0
+	});
 
-	// 每次打开此页面，读取判定好的角色，并向后端请求最新登录用户信息
+	// 每次打开此页面，读取判定好的角色，并向后端请求最新数据
 	onShow(() => {
 		userRole.value = uni.getStorageSync('userRole') || 'host';
 		fetchCurrentUserInfo();
+		// 如果不是门岗，则请求看板统计数据
+		if (userRole.value !== 'guard') {
+			fetchDashboardStats();
+		}
 	});
 
 	// 调用异步接口获取当前人信息并绑定到工作台欢迎语
@@ -152,6 +173,18 @@
 			}
 		} catch (error) {
 			console.error('获取工作台动态用户信息异常:', error);
+		}
+	};
+
+	// 拉取看板动态统计数据
+	const fetchDashboardStats = async () => {
+		try {
+			const res = await getDashboardStats();
+			if (res.code === '00000' && res.data) {
+				stats.value = res.data;
+			}
+		} catch (error) {
+			console.error('获取管理台统计数据异常:', error);
 		}
 	};
 
@@ -281,6 +314,11 @@
 
 	.text-green {
 		color: #34c759;
+	}
+	
+	/* 新增品红色，用于区分待被访人审核 */
+	.text-pink {
+		color: #ff2d55;
 	}
 
 	.label {

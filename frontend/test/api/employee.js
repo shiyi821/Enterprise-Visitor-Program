@@ -86,3 +86,14 @@ export function getRoleOptions() {
     method: 'GET'
   });
 }
+
+/**
+ * 修改员工状态
+ * 后端接口：PATCH /api/v1/users/{userId}/status
+ */
+export function updateEmployeeStatus(userId, status) {
+  return request({
+    url: `/api/v1/users/${userId}/status?status=${status}`,
+    method: 'PATCH'
+  });
+}

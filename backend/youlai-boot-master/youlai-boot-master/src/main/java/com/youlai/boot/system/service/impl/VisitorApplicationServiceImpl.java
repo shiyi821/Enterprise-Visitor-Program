@@ -2,15 +2,19 @@ package com.youlai.boot.system.service.impl;
 
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.youlai.boot.framework.security.util.SecurityUtils;
 import com.youlai.boot.system.mapper.VisitorApplicationMapper;
+import com.youlai.boot.system.model.entity.SysUser;
 import com.youlai.boot.system.model.entity.VisitorApplication;
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
+import com.youlai.boot.system.model.vo.AdminDashboardVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
+import com.youlai.boot.system.service.UserService;
 import com.youlai.boot.system.service.VisitorApplicationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,10 +26,15 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicationMapper, VisitorApplication> implements VisitorApplicationService {
+
+    // 注入 UserService 用于统计员工总数
+    private final UserService userService;
+
     /**
      * 分页查询访客申请列表
      */
@@ -109,8 +118,6 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return this.removeByIds(idList);
     }
 
-    // --- 记得在接口类 VisitorApplicationService.java 里也加上这两个方法的定义 ---
-
     @Override
     public IPage<VisitorApplicationPageVO> getAuditApplicationPage(VisitorApplicationQuery queryParams) {
         // 💡 核心：审批视角下，不查 userId，而是查 visitedPersonId = 当前登录人
@@ -142,6 +149,7 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
 
         return this.updateById(entity);
     }
+
     /**
      * 管理员审批列表：不限制被访人，仅按管理员审批状态筛选
      */
@@ -182,5 +190,42 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         entity.setAdminId(currentUserId);
         entity.setAdminApprovalTime(LocalDateTime.now());
         return this.updateById(entity);
+    }
+
+    /**
+     * 获取管理台看板动态统计数据
+     */
+    @Override
+    public AdminDashboardVO getDashboardStats() {
+        AdminDashboardVO vo = new AdminDashboardVO();
+
+        // 1. 到访人数：被访人和管理员都已经审核通过 (双1)
+        long visitorCount = this.count(new LambdaQueryWrapper<VisitorApplication>()
+            .eq(VisitorApplication::getVisitedPersonApprovalStatus, 1)
+            .eq(VisitorApplication::getAdminApprovalStatus, 1));
+        vo.setTotalVisitorCount((int) visitorCount);
+
+        // 2. 待管理审核：被访人已经通过 (1)，等待管理员审核 (0)
+        long adminPending = this.count(new LambdaQueryWrapper<VisitorApplication>()
+            .eq(VisitorApplication::getVisitedPersonApprovalStatus, 1)
+            .eq(VisitorApplication::getAdminApprovalStatus, 0));
+        vo.setAdminPendingCount((int) adminPending);
+
+        // 3. 待被访人审核：被访人处于未审核状态 (0)
+        long hostPending = this.count(new LambdaQueryWrapper<VisitorApplication>()
+            .eq(VisitorApplication::getVisitedPersonApprovalStatus, 0));
+        vo.setHostPendingCount((int) hostPending);
+
+        // 4. 员工总数：使用 EXISTS 语法进行精确连表过滤
+        // 逻辑：统计 sys_user 表中，status 为 1（在职），
+        // 并且在 sys_user_role 表中存在对应的 user_id 且 role_id 是 1(管理员) 或 2(员工) 的人数。
+        long employeeCount = userService.count(new LambdaQueryWrapper<SysUser>()
+            .eq(SysUser::getStatus, 1)
+            // exists 是最标准的连表条件写法，sys_user 是你的主表名
+            .exists("SELECT 1 FROM sys_user_role ur WHERE ur.user_id = sys_user.id AND ur.role_id IN (1, 2,4,5)"));
+
+        vo.setEmployeeCount((int) employeeCount);
+
+        return vo;
     }
 }

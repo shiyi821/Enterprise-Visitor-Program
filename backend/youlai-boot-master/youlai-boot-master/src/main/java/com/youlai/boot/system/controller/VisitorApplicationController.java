@@ -8,6 +8,7 @@ import com.youlai.boot.common.result.PageResult;
 import com.youlai.boot.common.result.Result;
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
+import com.youlai.boot.system.model.vo.AdminDashboardVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 import com.youlai.boot.system.service.VisitorApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -97,6 +98,7 @@ public class VisitorApplicationController {
         boolean result = visitorApplicationService.auditApplication(id, action);
         return Result.judge(result);
     }
+
     @Operation(summary = "管理员审批列表")
     @GetMapping("/admin-approval")
     @Log(module = LogModuleEnum.VISITOR, value = ActionTypeEnum.LIST)
@@ -115,5 +117,15 @@ public class VisitorApplicationController {
     ) {
         boolean result = visitorApplicationService.adminAuditApplication(id, action);
         return Result.judge(result);
+    }
+
+    /**
+     * 获取管理台看板动态统计数据
+     */
+    @Operation(summary = "获取管理员看板统计数据")
+    @GetMapping("/dashboard/stats")
+    public Result<AdminDashboardVO> getDashboardStats() {
+        AdminDashboardVO stats = visitorApplicationService.getDashboardStats();
+        return Result.success(stats);
     }
 }
