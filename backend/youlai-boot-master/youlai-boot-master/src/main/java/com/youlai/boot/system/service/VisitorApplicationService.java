@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.youlai.boot.system.model.entity.VisitorApplication;
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
+import com.youlai.boot.system.model.vo.AdminDashboardVO; // 新增导入
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 
 public interface VisitorApplicationService extends IService<VisitorApplication> {
@@ -56,4 +57,11 @@ public interface VisitorApplicationService extends IService<VisitorApplication> 
     IPage<VisitorApplicationPageVO> getAdminApprovalPage(VisitorApplicationQuery queryParams);
 
     boolean adminAuditApplication(Long id, Integer action);
+
+    /**
+     * 获取管理台看板动态统计数据
+     *
+     * @return 包含到访人数、待我审核、待被访人审核、员工总数的视图对象
+     */
+    AdminDashboardVO getDashboardStats();
 }

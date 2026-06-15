@@ -1,13 +1,11 @@
 <template>
 	<view class="container">
 		<view class="top-bar">
-			<!-- 一级部门筛选 -->
 			<picker class="filter-picker" mode="selector" :range="level1Options" range-key="label"
 				@change="onLevel1Change">
 				<view class="picker-text">{{ level1Name }} <text class="arrow">▼</text></view>
 			</picker>
 
-			<!-- 二级部门筛选（有子部门时显示） -->
 			<picker v-if="level2Options.length > 0" class="filter-picker" mode="selector" :range="level2Options"
 				range-key="label" @change="onLevel2Change">
 				<view class="picker-text">{{ level2Name }} <text class="arrow">▼</text></view>
@@ -30,9 +28,13 @@
 						<text class="nickname">{{ item.nickname }}</text>
 						<text class="username">(@{{ item.username }})</text>
 					</view>
-					<text class="status-tag" :class="item.status === 1 ? 'status-on' : 'status-off'">
-						{{ item.status === 1 ? '在职' : '禁用' }}
-					</text>
+					
+					<view class="status-switch-box">
+						<text class="status-text" :class="item.status === 1 ? 'status-on' : 'status-off'">
+							{{ item.status === 1 ? '在职' : '已停用' }}
+						</text>
+						<switch :checked="item.status === 1" @change="(e) => handleStatusChange(item, e)" color="#007aff" style="transform:scale(0.75)" />
+					</view>
 				</view>
 
 				<view class="card-body">
@@ -66,7 +68,7 @@
 					</view>
 
 					<view class="form-group">
-						<text class="label">所属部门</text>
+						<text class="label"><text style="color:red">*</text>所属部门</text>
 						<picker class="input picker-box" mode="selector" :range="deptOptions" range-key="name"
 							@change="onFormDeptChange">
 							<view>{{ form.deptName || '请选择部门' }}</view>
@@ -79,11 +81,6 @@
 							@change="onFormRoleChange">
 							<view>{{ form.roleNames || '请分配角色' }}</view>
 						</picker>
-					</view>
-
-					<view class="form-group">
-						<text class="label">账号状态</text>
-						<switch :checked="form.status === 1" @change="onStatusChange" color="#007aff" />
 					</view>
 
 					<view class="form-group" v-if="!form.id">
@@ -115,7 +112,8 @@
 		deleteEmployees,
 		getDeptOptions,
 		resetEmployeePassword,
-		getRoleOptions
+		getRoleOptions,
+		updateEmployeeStatus
 	} from '@/api/employee.js';
 
 	const searchKey = ref('');
@@ -123,7 +121,7 @@
 	const showModal = ref(false);
 
 	// ========== 两级联动部门筛选变量 ==========
-	const rawDeptTree = ref([]); // 原始树形部门数据
+	const rawDeptTree = ref([]); 
 	const level1Options = ref([{
 		label: '全部部门',
 		value: ''
@@ -143,10 +141,10 @@
 		deptName: '',
 		roleIds: [],
 		roleNames: '',
-		status: 1
+		status: 1 
 	});
 
-	const deptOptions = ref([]); // 表单内部门选择器（带层级缩进）
+	const deptOptions = ref([]); 
 	const roleOptions = ref([]);
 
 	onMounted(() => {
@@ -155,7 +153,6 @@
 		});
 	});
 
-	// 部门树形打平（仅给表单内选择器用，保留层级缩进效果）
 	const flattenDepts = (deptList, level = 0) => {
 		let result = [];
 		let prefix = '';
@@ -179,14 +176,12 @@
 		try {
 			const res = await getDeptOptions();
 			if (res.code === '00000' && res.data) {
-				// 1. 保存原始树形数据，给顶部两级联动筛选用
 				rawDeptTree.value = res.data;
 				level1Options.value = [{
 					label: '全部部门',
 					value: ''
 				}, ...res.data];
 
-				// 2. 打平数据，给表单内部门选择器用（保留层级缩进）
 				const flatDepts = flattenDepts(res.data);
 				deptOptions.value = flatDepts;
 			}
@@ -196,30 +191,26 @@
 	};
 
 	const loadRoleOptions = async () => {
-	    try {
-	        const res = await getRoleOptions();
-	        if (res.code === '00000' && res.data) {
-	            roleOptions.value = res.data
-	                .map(item => ({
-	                    id: item.value,
-	                    name: item.label
-	                }))
-	                // 过滤掉「访问人」角色，不在下拉选项中显示
-	                .filter(item => item.name !== '访问人');
-	        }
-	    } catch (error) {
-	        console.error('获取角色字典失败:', error);
-	    }
+		try {
+			const res = await getRoleOptions();
+			if (res.code === '00000' && res.data) {
+				roleOptions.value = res.data
+					.map(item => ({
+						id: item.value,
+						name: item.label
+					}))
+					.filter(item => item.name !== '访问人');
+			}
+		} catch (error) {
+			console.error('获取角色字典失败:', error);
+		}
 	};
 
-	// ========== 两级联动筛选逻辑 ==========
-	// 切换一级部门
 	const onLevel1Change = (e) => {
 		const item = level1Options.value[e.detail.value];
 		level1Name.value = item.label;
 		selectedDeptId.value = item.value;
 
-		// 有子部门则更新二级选项，无则清空二级
 		if (item.children && item.children.length > 0) {
 			level2Options.value = [{
 				label: '全部子部门',
@@ -233,7 +224,6 @@
 		loadData();
 	};
 
-	// 切换二级部门
 	const onLevel2Change = (e) => {
 		const item = level2Options.value[e.detail.value];
 		level2Name.value = item.label;
@@ -241,7 +231,6 @@
 		loadData();
 	};
 
-	// ========== 列表加载逻辑 ==========
 	const loadData = async () => {
 		uni.showLoading({
 			title: '加载中...'
@@ -258,14 +247,11 @@
 			if (res.code === '00000') {
 				let allUsers = res.data?.list || [];
 
-				// 1. 过滤访客角色
 				allUsers = allUsers.filter(user => {
 					if (user.roleNames && user.roleNames.includes('访问人')) return false;
 					return true;
 				});
 
-				// 2. 选中具体二级部门时，前端精准匹配部门名称（解决后台部门ID查询不准的问题）
-				// 选"全部子部门"或"全部部门"时，不做前端拦截，由后台返回对应范围数据
 				if (level2Options.length > 0 && level2Name.value !== '全部子部门') {
 					allUsers = allUsers.filter(user => user.deptName === level2Name.value);
 				}
@@ -288,7 +274,6 @@
 		}
 	};
 
-	// ========== 表单操作逻辑 ==========
 	const onFormDeptChange = (e) => {
 		const index = e.detail.value;
 		form.value.deptId = deptOptions.value[index].id;
@@ -301,14 +286,61 @@
 		form.value.roleNames = roleOptions.value[index].name;
 	};
 
-	const onStatusChange = (e) => {
-		form.value.status = e.detail.value ? 1 : 0;
-	};
+    // ======= 列表快捷切换状态逻辑 =======
+    const handleStatusChange = async (item, e) => {
+        const newStatus = e.detail.value ? 1 : 0;
+        const originalStatus = item.status; 
+        
+        item.status = newStatus;
+        
+        try {
+            uni.showLoading({ title: '正在更新状态...' });
+            const res = await updateEmployeeStatus(item.id, newStatus);
+            
+            if (res.code === '00000') {
+                uni.showToast({ title: '状态更新成功', icon: 'success' });
+            } else {
+                item.status = originalStatus; 
+                uni.showToast({ title: res.msg || '更新失败', icon: 'none' });
+            }
+        } catch (error) {
+            item.status = originalStatus; 
+            uni.showToast({ title: '网络异常', icon: 'none' });
+        } finally {
+            uni.hideLoading();
+        }
+    };
 
 	const openModal = (row = null) => {
 		if (row) {
+			let parsedRoleIds = [];
+			if (row.roleIds) {
+				parsedRoleIds = Array.isArray(row.roleIds) ? row.roleIds : String(row.roleIds).split(',').map(Number);
+			} else if (row.roleNames && roleOptions.value.length > 0) {
+				const namesArray = row.roleNames.split(',');
+				parsedRoleIds = roleOptions.value
+					.filter(opt => namesArray.includes(opt.name))
+					.map(opt => opt.id);
+			}
+
+			let parsedDeptId = row.deptId || null;
+			if (!parsedDeptId && row.deptName && deptOptions.value.length > 0) {
+				const foundDept = deptOptions.value.find(opt => opt.originalName === row.deptName);
+				if (foundDept) {
+					parsedDeptId = foundDept.id;
+				}
+			}
+
 			form.value = {
-				...row
+				id: row.id,
+				username: row.username || '',
+				nickname: row.nickname || '',
+				mobile: row.mobile || '',
+				deptId: parsedDeptId,
+				deptName: row.deptName || '',
+				roleIds: parsedRoleIds,
+				roleNames: row.roleNames || '',
+				status: row.status !== undefined ? row.status : 1 
 			};
 		} else {
 			form.value = {
@@ -320,7 +352,7 @@
 				deptName: '',
 				roleIds: [],
 				roleNames: '',
-				status: 1
+				status: 1 
 			};
 		}
 		showModal.value = true;
@@ -328,21 +360,16 @@
 
 	const submitForm = async () => {
 		if (!form.value.username || !form.value.nickname || !form.value.mobile) {
-			return uni.showToast({
-				title: '带*号为必填项',
-				icon: 'none'
-			});
+			return uni.showToast({ title: '带*号为必填项', icon: 'none' });
 		}
 		if (!form.value.roleIds || form.value.roleIds.length === 0) {
-			return uni.showToast({
-				title: '请为员工分配系统角色',
-				icon: 'none'
-			});
+			return uni.showToast({ title: '请为员工分配系统角色', icon: 'none' });
+		}
+		if (!form.value.deptId) {
+			return uni.showToast({ title: '请选择所属部门', icon: 'none' });
 		}
 
-		uni.showLoading({
-			title: '正在保存...'
-		});
+		uni.showLoading({ title: '正在保存...' });
 
 		try {
 			const payload = {
@@ -351,7 +378,7 @@
 				mobile: form.value.mobile,
 				deptId: form.value.deptId,
 				roleIds: form.value.roleIds,
-				status: form.value.status
+				status: form.value.status 
 			};
 
 			let res;
@@ -364,23 +391,26 @@
 			}
 
 			if (res.code === '00000') {
-				uni.showToast({
-					title: form.value.id ? '修改成功' : '添加成功',
-					icon: 'success'
-				});
+				uni.showToast({ title: form.value.id ? '修改成功' : '添加成功', icon: 'success' });
 				showModal.value = false;
 				loadData();
 			} else {
-				uni.showToast({
-					title: res.msg || '保存失败',
-					icon: 'none'
-				});
+				uni.showToast({ title: res.msg || '保存失败', icon: 'none' });
 			}
 		} catch (error) {
 			console.error('保存报错:', error);
+			let errorMsg = '请求服务器失败，请检查网络';
+			if (error.msg) {
+				errorMsg = error.msg;
+			} else if (error.message) {
+				errorMsg = error.message;
+			} else if (error.response && error.response.data && error.response.data.msg) {
+				errorMsg = error.response.data.msg;
+			}
 			uni.showToast({
-				title: '请求服务器失败',
-				icon: 'none'
+				title: errorMsg,
+				icon: 'none',
+				duration: 3000 
 			});
 		} finally {
 			uni.hideLoading();
@@ -454,9 +484,16 @@
 							});
 						}
 					} catch (error) {
+						let errorMsg = '网络服务异常，请检查后端运行状态';
+						if (error.msg) errorMsg = error.msg;
+						else if (error.message) errorMsg = error.message;
+						else if (error.response && error.response.data && error.response.data.msg) {
+							errorMsg = error.response.data.msg;
+						}
 						uni.showToast({
-							title: '网络服务异常',
-							icon: 'none'
+							title: errorMsg,
+							icon: 'none',
+							duration: 3000
 						});
 					} finally {
 						uni.hideLoading();
@@ -584,19 +621,21 @@
 		color: #999;
 	}
 
-	.status-tag {
-		font-size: 20rpx;
-		padding: 4rpx 12rpx;
-		border-radius: 6rpx;
+	.status-switch-box {
+		display: flex;
+		align-items: center;
+	}
+
+	.status-text {
+		font-size: 24rpx;
+		margin-right: 8rpx;
 	}
 
 	.status-on {
-		background-color: #e6f7ff;
-		color: #1890ff;
+		color: #007aff;
 	}
 
 	.status-off {
-		background-color: #fff1f0;
 		color: #f5222d;
 	}
 
@@ -617,6 +656,8 @@
 		justify-content: flex-end;
 		gap: 40rpx;
 		margin-top: 20rpx;
+		border-top: 1px dashed #f5f5f5;
+		padding-top: 20rpx;
 	}
 
 	.action-btn {
