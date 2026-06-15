@@ -59,4 +59,25 @@ public class VisitorApplicationPageVO {
     @Schema(description = "创建时间")
     @JsonFormat(pattern = "yyyy/MM/dd HH:mm")
     private LocalDateTime createTime;
+
+    @Schema(description = "同行来访人")
+    private String companionVisitors;
+
+    @Schema(description = "被访人审批时间")
+    @JsonFormat(pattern = "yyyy/MM/dd HH:mm")
+    private LocalDateTime visitedApprovalTime;
+
+    @Schema(description = "审批管理员姓名")
+    private String adminName;
+
+    @Schema(description = "管理员审批时间")
+    @JsonFormat(pattern = "yyyy/MM/dd HH:mm")
+    private LocalDateTime adminApprovalTime;
+
+    @Schema(description = "门卫姓名")
+    private String guardName;
+
+    @Schema(description = "门卫核验时间")
+    @JsonFormat(pattern = "yyyy/MM/dd HH:mm")
+    private LocalDateTime guardTime;
 }

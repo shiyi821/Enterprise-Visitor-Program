@@ -4,7 +4,13 @@
 			<view class="main-status">{{ getStatusText(detail) }}</view>
 			<view class="sub-status">申请单号：{{ detail.id }}</view>
 		</view>
-
+<view class="info-card qr-card" v-show="detail.visitedPersonApprovalStatus === 1 && detail.adminApprovalStatus === 1 && detail.applicationStatus === 0">
+            <view class="qr-title">入校/入厂核验码</view>
+            <view class="qr-wrapper">
+                <uqrcode ref="uQRCode" canvas-id="visitorQrCode" :value="String(detail.id)" :size="150" />
+            </view>
+            <view class="qr-tips">请在门岗处出示此二维码进行扫码核验</view>
+        </view>
 		<view class="info-card">
 			<view class="card-title">基础信息</view>
 			<view class="info-item">
@@ -74,7 +80,7 @@
 				</view>
 			</view>
 
-			<view class="timeline-item" :class="getTimelineClass(detail.adminApprovalStatus)" v-if="detail.visitedPersonApprovalStatus !== 2">
+			<view class="timeline-item" :class="getTimelineClass(detail.adminApprovalStatus)" v-if="detail.visitedPersonApprovalStatus === 1">
 				<view class="dot"></view>
 				<view class="content">
 					<view class="title">
@@ -114,16 +120,20 @@ onLoad((options) => {
 	}
 });
 
-// 获取详情数据（这需要后端提供详情接口）
+// 获取详情数据调用新写的接口
 const fetchDetail = async (id) => {
 	try {
 		uni.showLoading({ title: '加载中...' });
 		const res = await request({
-			url: `/api/v1/visitor-applications/${id}/detail`, // 后端待新增的详情接口
+			url: `/api/v1/visitor-applications/${id}/detail`,
 			method: 'GET'
 		});
+		// youlai-boot 的 request 通常直接剥除 code 包装
 		if (res && res.data) {
 			detail.value = res.data;
+		} else if (res && res.id) {
+			// 兼容不同版本的 request 封装
+			detail.value = res;
 		}
 		uni.hideLoading();
 	} catch (error) {
@@ -134,7 +144,7 @@ const fetchDetail = async (id) => {
 
 // 各种辅助展示的方法
 const getStatusText = (item) => {
-	if (item.applicationStatus === 2) return '申请已拒绝';
+	if (item.applicationStatus === 2 || item.visitedPersonApprovalStatus === 2 || item.adminApprovalStatus === 2) return '申请已拒绝';
 	if (item.applicationStatus === 1) return '已来访 (流程结束)';
 	if (item.visitedPersonApprovalStatus === 0) return '等待被访人审批';
 	if (item.visitedPersonApprovalStatus === 1 && item.adminApprovalStatus === 0) return '等待管理员审批';
@@ -143,7 +153,7 @@ const getStatusText = (item) => {
 };
 
 const getBgClass = (item) => {
-	if (item.applicationStatus === 2 || item.visitedPersonApprovalStatus === 2) return 'bg-reject';
+	if (item.applicationStatus === 2 || item.visitedPersonApprovalStatus === 2 || item.adminApprovalStatus === 2) return 'bg-reject';
 	if (item.applicationStatus === 1) return 'bg-done';
 	return 'bg-processing';
 };
@@ -298,5 +308,30 @@ const getTimelineClass = (status) => {
 	font-size: 24rpx;
 	color: #888;
 	margin-top: 4rpx;
+}
+.qr-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40rpx 0;
+}
+.qr-title {
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 20rpx;
+}
+.qr-wrapper {
+    width: 150px;
+    height: 150px;
+    background-color: #f5f5f5; /* 占位色，防止二维码还没生成时难看 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.qr-tips {
+    font-size: 24rpx;
+    color: #ff9900;
+    margin-top: 20rpx;
 }
 </style>

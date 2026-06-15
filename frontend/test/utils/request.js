@@ -3,7 +3,7 @@
 // [核心配置] 后端服务的基础本地绝对路径 (当前后端端口为 8000)
 // 注意：如果只在电脑浏览器(H5)调试，写 localhost 没问题。
 // 如果用手机真机或微信小程序模拟器调试，必须改成你电脑的局域网 IP (例如 http://192.168.1.100:8000)
-const BASE_URL = 'http://localhost:8000'; 
+const BASE_URL = 'http://127.0.0.1:8000'; 
 
 export const request = (options) => {
   return new Promise((resolve, reject) => {

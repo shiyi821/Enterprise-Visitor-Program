@@ -134,6 +134,14 @@
 				"navigationBarBackgroundColor": "#245381",
 				"navigationBarTextStyle": "white"
 			}
+		},
+		{
+					"path": "pages/admin/guard/scan",
+					"style": {
+						"navigationBarTitleText": "门岗核验",
+						"navigationBarBackgroundColor": "#0066ce",
+						"navigationBarTextStyle": "white"
+			}
 		}
 	],
 	"globalStyle": {

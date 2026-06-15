@@ -228,4 +228,44 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
 
         return vo;
     }
+
+    /**
+     * 获取访客申请详细信息
+     */
+    @Override
+    public VisitorApplicationPageVO getApplicationDetail(Long id) {
+        VisitorApplicationPageVO detail = this.baseMapper.getApplicationDetail(id);
+        Assert.notNull(detail, "访客申请记录不存在");
+        return detail;
+    }
+    /**
+     * 门岗核验放行
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean passApplication(Long id) {
+        // 1. 获取申请单并校验
+        VisitorApplication entity = this.getById(id);
+        Assert.notNull(entity, "访客申请不存在");
+
+        // 2. 状态校验：必须是待来访状态（被访人和管理员都已同意）
+        Assert.isTrue(entity.getVisitedPersonApprovalStatus() == 1, "被访人未审批，无法放行");
+        Assert.isTrue(entity.getAdminApprovalStatus() == 1, "管理员未审批，无法放行");
+        Assert.isTrue(entity.getApplicationStatus() == 0, "该申请当前状态无法放行");
+
+        // 3. 更新状态
+        entity.setApplicationStatus(1); // 1表示已来访(流程结束)
+        entity.setGuardId(SecurityUtils.getUserId()); // 记录门岗ID
+
+        // 假设你通过 SecurityUtils 能拿到当前登录人的真实姓名或用户名
+        // 如果框架默认没有 getUsername()，你可能需要注入 UserService 查一下，或者用 getUserId()
+        SysUser guardUser = userService.getById(SecurityUtils.getUserId());
+        if(guardUser != null) {
+            entity.setGuardName(guardUser.getNickname()); // 或者 guardUser.getUsername()
+        }
+
+        entity.setGuardTime(LocalDateTime.now()); // 记录核验时间
+
+        return this.updateById(entity);
+    }
 }

@@ -125,13 +125,10 @@ const buildQueryParams = () => {
             // 我已同意：被访人已审批通过（不管管理员后续状态）
             params.visitedPersonApprovalStatus = 1;
         } else if (currentTab.value === 'rejected') {
+			params.visitedPersonApprovalStatus = 2;
             // 已拒绝：被访人拒绝 OR 管理员拒绝（两种拒绝都展示）
-            params.rejectType = 'all'; // 后端需支持该参数，或直接传以下两个状态
-            // 若后端不支持rejectType，可拆分为：
-            // params.$or = [
-            //   { visitedPersonApprovalStatus: 2 },
-            //   { adminApprovalStatus: 2 }
-            // ]
+            //params.rejectType = 'all'; // 后端需支持该参数，或直接传以下两个状态
+            
         }
     }
     return params;

@@ -128,4 +128,22 @@ public class VisitorApplicationController {
         AdminDashboardVO stats = visitorApplicationService.getDashboardStats();
         return Result.success(stats);
     }
+
+    @Operation(summary = "获取访客申请详细信息")
+    @GetMapping("/{id}/detail")
+    public Result<VisitorApplicationPageVO> getApplicationDetail(
+        @Parameter(description = "申请ID") @PathVariable Long id
+    ) {
+        VisitorApplicationPageVO detail = visitorApplicationService.getApplicationDetail(id);
+        return Result.success(detail);
+    }
+    @Operation(summary = "门岗核验放行")
+    @PutMapping("/{id}/pass")
+    @Log(module = LogModuleEnum.VISITOR, value = ActionTypeEnum.UPDATE)
+    public Result<Void> passApplication(
+        @Parameter(description = "申请ID") @PathVariable Long id
+    ) {
+        boolean result = visitorApplicationService.passApplication(id);
+        return Result.judge(result);
+    }
 }

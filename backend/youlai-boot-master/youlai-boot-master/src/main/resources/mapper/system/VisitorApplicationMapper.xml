@@ -138,5 +138,40 @@
         WHERE
             id = #{id}
     </select>
+    <select id="getApplicationDetail" resultType="com.youlai.boot.system.model.vo.VisitorApplicationPageVO">
+        SELECT
+            va.id,
+            va.visit_date,
+            va.visit_time,
+            va.dept_id,
+            d.name AS deptName,
+            va.applicant_name AS applicantName,
+            va.applicant_phone AS applicantPhone,
+            va.visitor_count AS visitorCount,
+            va.visit_purpose AS visitPurpose,
+            va.visited_person_id AS visitedPersonId,
+            u1.nickname AS visitedPersonName,
+            va.visitor_company AS visitorCompany,
+            va.companion_visitors AS companionVisitors,
+            va.application_status AS applicationStatus,
+            va.create_time AS createTime,
+            va.visited_person_approval_status AS visitedPersonApprovalStatus,
+            va.visited_approval_time AS visitedApprovalTime,
+            va.admin_approval_status AS adminApprovalStatus,
+            va.admin_id AS adminId,
+            u2.nickname AS adminName,
+            va.admin_approval_time AS adminApprovalTime,
+            va.guard_id AS guardId,
+            u3.nickname AS guardName,
+            va.guard_time AS guardTime
+        FROM
+            visitor_application va
+                LEFT JOIN sys_dept d ON va.dept_id = d.id
+                LEFT JOIN sys_user u1 ON va.visited_person_id = u1.id
+                LEFT JOIN sys_user u2 ON va.admin_id = u2.id
+                LEFT JOIN sys_user u3 ON va.guard_id = u3.id
+        WHERE
+            va.id = #{id}
+    </select>
 
 </mapper>

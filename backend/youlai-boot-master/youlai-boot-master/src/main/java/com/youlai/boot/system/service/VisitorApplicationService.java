@@ -64,4 +64,11 @@ public interface VisitorApplicationService extends IService<VisitorApplication> 
      * @return 包含到访人数、待我审核、待被访人审核、员工总数的视图对象
      */
     AdminDashboardVO getDashboardStats();
+
+    /**
+     * 获取访客申请详细信息
+     */
+    VisitorApplicationPageVO getApplicationDetail(Long id);
+
+    boolean passApplication(Long id);
 }

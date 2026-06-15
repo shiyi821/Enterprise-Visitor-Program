@@ -23,4 +23,6 @@ public interface VisitorApplicationMapper extends BaseMapper<VisitorApplication>
         IPage<VisitorApplicationPageVO> page,
         @Param("queryParams") VisitorApplicationQuery queryParams
     );
+
+    VisitorApplicationPageVO getApplicationDetail(Long id);
 }

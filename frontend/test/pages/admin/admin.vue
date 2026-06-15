@@ -38,7 +38,7 @@
 				<text class="section-title">门岗工作区</text>
 			</view>
 			<view class="grid-box">
-				<view class="grid-item" @click="handleScan">
+				<view class="grid-item" @click="navTo('/pages/admin/guard/scan')">
 					<view class="icon-wrap bg-blue">
 						<image class="icon" src="/static/images/check.png"></image>
 					</view>
