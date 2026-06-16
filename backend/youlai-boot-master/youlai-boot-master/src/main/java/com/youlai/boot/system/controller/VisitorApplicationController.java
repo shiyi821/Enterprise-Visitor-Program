@@ -146,4 +146,11 @@ public class VisitorApplicationController {
         boolean result = visitorApplicationService.passApplication(id);
         return Result.judge(result);
     }
+    @Operation(summary = "门卫视角-今日待访及历史高级记录查询")
+    @GetMapping("/guard-page")
+    public PageResult<VisitorApplicationPageVO> getGuardPageList(
+        @Valid VisitorApplicationQuery queryParams
+    ) {
+        return PageResult.success(visitorApplicationService.getGuardApplicationPage(queryParams));
+    }
 }
