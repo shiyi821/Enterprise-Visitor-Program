@@ -41,12 +41,26 @@ public class VisitorApplicationQuery extends BaseQuery {
     @Schema(hidden = true)
     private Boolean isRoot;
 
-    @Schema(description = "申请人账号ID（后端自动注入，前端无需传递）")
+    @Schema(description = "申请人账号ID（后端自动注入）")
     private Long userId;
 
-    @Schema(description = "被访人ID（后端自动注入，前端无需传递）")
+    @Schema(description = "被访人ID（后端自动注入）")
     private String visitedPersonId;
 
     @Schema(description = "前端传递的Tab类型(todo/processing/done)")
     private String tabType;
+
+    // ================= 💡 新增：高级查询与门岗精准过滤字段 =================
+
+    @Schema(description = "精确来访日期(格式: YYYY-MM-DD)")
+    private String visitDate;
+
+    @Schema(description = "来访单位模糊匹配字段")
+    private String visitorCompany;
+
+    @Schema(description = "高级查询-起始日期")
+    private String startDate;
+
+    @Schema(description = "高级查询-结束日期")
+    private String endDate;
 }

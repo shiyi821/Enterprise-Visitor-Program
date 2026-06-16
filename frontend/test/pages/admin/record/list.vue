@@ -1,7 +1,7 @@
 <template>
 	<view class="record-container">
 		<view class="info-bar">
-			<text class="info-text">共查询到 {{ filteredList.length }} 条访客记录</text>
+			<text class="info-text">共查询到 {{ total }} 条访客记录</text>
 			<view class="filter-toggle" @click="showFilter = !showFilter">
 				<text>高级筛选统计</text>
 				<text class="toggle-icon">{{ showFilter ? '▲' : '▼' }}</text>
@@ -29,48 +29,61 @@
 
 			<view class="filter-row" v-if="userRole === 'admin'">
 				<text class="f-label">被访部门：</text>
-				<picker class="f-picker" mode="selector" :range="deptOptions"
-					@change="e => filterForm.hostDept = deptOptions[e.detail.value]">
-					<view class="picker-text">{{ filterForm.hostDept || '全部部门' }}</view>
+				<picker class="f-picker" mode="selector" :range="deptOptions" range-key="label"
+					@change="e => filterForm.hostDeptId = deptOptions[e.detail.value].value">
+					<view class="picker-text">
+						{{ getDeptNameById(filterForm.hostDeptId) || '全部部门' }}
+					</view>
 				</picker>
 			</view>
 
 			<view class="filter-actions">
 				<button class="f-btn reset" @click="resetFilter">重置条件</button>
-				<button class="f-btn search" @click="showFilter = false">确定查询</button>
+				<button class="f-btn search" @click="executeSearch">确定查询</button>
 			</view>
 		</view>
 
-		<scroll-view scroll-y class="list-area">
-			<view v-if="filteredList.length === 0" class="empty-box">
+		<scroll-view scroll-y class="list-area" @scrolltolower="loadMore">
+			<view v-if="recordList.length === 0" class="empty-box">
 				<image src="/static/images/tabbar/enroll.png" class="empty-icon"></image>
 				<text>{{ emptyTip }}</text>
 			</view>
 
-			<view class="card" v-for="item in filteredList" :key="item.id" @click="navToDetail(item.id)">
+			<view class="card" v-for="item in recordList" :key="item.id" @click="navToDetail(item.id)">
 				<view class="card-top">
 					<text class="time">预约时间：{{ item.visitDate }} {{ item.visitTime }}</text>
-					<text class="status-tag" :class="'status-' + item.status">
-						{{ getStatusText(item.status) }}
+					<text class="status-tag" :class="'status-' + item.applicationStatus">
+						{{ getStatusText(item.applicationStatus, item.visitedPersonApprovalStatus, item.adminApprovalStatus) }}
 					</text>
 				</view>
 
 				<view class="card-content">
-					<view class="row"><text class="label">访客姓名：</text><text class="value">{{ item.visitorName }}
-							({{ item.phone }})</text></view>
-					<view class="row"><text class="label">来访单位：</text><text class="value">{{ item.company }}</text>
+					<view class="row">
+						<text class="label">访客姓名：</text>
+						<text class="value">{{ item.applicantName }} ({{ item.applicantPhone }})</text>
+					</view>
+					<view class="row">
+						<text class="label">来访单位：</text>
+						<text class="value">{{ item.visitorCompany || '无' }}</text>
 					</view>
 					<view class="row" v-if="userRole !== 'host'">
 						<text class="label">被 访 人：</text>
-						<text class="value highlight">{{ item.hostName }} ({{ item.hostDept }})</text>
+						<text class="value highlight">{{ item.visitedPersonName || '未知' }}
+							({{ item.deptName || '无部门' }})</text>
 					</view>
-					<view class="row"><text class="label">来访事由：</text><text class="value">{{ item.reason }}</text>
+					<view class="row">
+						<text class="label">来访事由：</text>
+						<text class="value">{{ item.visitPurpose || '无' }}</text>
 					</view>
 
-					<view class="guard-action-tip" v-if="userRole === 'guard' && item.status === 3">
-						<text>▶ 提示：等待该访客到达时扫码放行</text>
+					<view class="guard-action-tip" v-if="userRole === 'guard' && item.applicationStatus === 0">
+						<text>▶ 提示：等待该访客到达时进行核验</text>
 					</view>
 				</view>
+			</view>
+
+			<view v-if="recordList.length > 0 && recordList.length >= total" class="no-more">
+				- 已经到底啦 -
 			</view>
 		</scroll-view>
 	</view>
@@ -84,160 +97,178 @@
 	import {
 		onShow
 	} from '@dcloudio/uni-app';
+	import {
+		getVisitorPage,
+		getHostVisitorPage,
+		getAdminVisitorPage,
+		getGuardVisitorPage
+	} from '@/api/visitor.js';
+	import {
+		getDeptOptions
+	} from '@/api/employee.js';
 
 	const userRole = ref('');
-	const currentHostName = '李总';
-	const showFilter = ref(false); // 控制筛选面板开关
+	const showFilter = ref(false);
 
-	// 筛选条件表单
+	const recordList = ref([]);
+	const pageNum = ref(1);
+	const pageSize = ref(10);
+	const total = ref(0);
+
 	const filterForm = ref({
 		startDate: '',
 		endDate: '',
 		company: '',
-		hostDept: ''
+		hostDeptId: ''
 	});
 
-	const deptOptions = ref(['全部部门', '集团总部', '技术部', '市场部']);
+	const deptOptions = ref([]);
 
-	const getTodayDate = () => {
-		const d = new Date();
-		const year = d.getFullYear();
-		const month = String(d.getMonth() + 1).padStart(2, '0');
-		const day = String(d.getDate()).padStart(2, '0');
-		return `${year}-${month}-${day}`;
-	};
-	const todayStr = getTodayDate();
-
-	onShow(() => {
+	onShow(async () => {
 		userRole.value = uni.getStorageSync('userRole') || 'host';
 
 		let pageTitle = '访客来访记录';
 		if (userRole.value === 'host') pageTitle = '我的被访记录';
-		if (userRole.value === 'guard') pageTitle = '今日到访人员名单';
+		if (userRole.value === 'guard') pageTitle = '今日待访名单';
 		uni.setNavigationBarTitle({
 			title: pageTitle
 		});
+
+		if (userRole.value === 'admin') {
+			loadDept();
+		}
+		resetAndFetchData();
 	});
+
+	// 💡 新增：递归扁平化部门树结构函数
+	const flattenDeptTree = (treeData, depth = 0) => {
+		let result = [];
+		treeData.forEach(node => {
+			// 根据层级添加前缀空格和符号，实现视觉上的树状下拉列表
+			const prefix = depth > 0 ? ' '.repeat(depth) + '├─ ' : '';
+			result.push({
+				label: prefix + node.label, // 选择器里显示的带缩进的名字
+				value: node.value, // 传给后端的真实 ID
+				realName: node.label // 选完之后回显在页面上的干净名字
+			});
+			// 如果有子部门，递归往下解析
+			if (node.children && node.children.length > 0) {
+				result = result.concat(flattenDeptTree(node.children, depth + 1));
+			}
+		});
+		return result;
+	};
+
+	const loadDept = async () => {
+		try {
+			const res = await getDeptOptions();
+			if (res.code === '00000' && res.data) {
+				// 💡 修改：调用扁平化函数处理后端返回的数据
+				const flatData = flattenDeptTree(res.data);
+				deptOptions.value = [{
+					label: '全部部门',
+					value: '',
+					realName: '全部部门'
+				}, ...flatData];
+			}
+		} catch (error) {}
+	};
+
+	const getDeptNameById = (id) => {
+		if (!id) return '';
+		const target = deptOptions.value.find(item => item.value === id);
+		// 💡 修改：回显时使用干净的 realName，而不是带 ├─ 符号的 label
+		return target ? target.realName : '';
+	};
 
 	const resetFilter = () => {
 		filterForm.value = {
 			startDate: '',
 			endDate: '',
 			company: '',
-			hostDept: ''
+			hostDeptId: ''
 		};
+		executeSearch();
+	};
+
+	const executeSearch = () => {
+		showFilter.value = false;
+		resetAndFetchData();
+	};
+
+	const resetAndFetchData = () => {
+		pageNum.value = 1;
+		recordList.value = [];
+		total.value = 0;
+		fetchRecordList();
+	};
+
+	const fetchRecordList = async () => {
+		uni.showLoading({
+			title: '加载中...'
+		});
+		try {
+			let queryParams = {
+				pageNum: pageNum.value,
+				pageSize: pageSize.value,
+				startDate: filterForm.value.startDate || undefined,
+				endDate: filterForm.value.endDate || undefined,
+				visitorCompany: filterForm.value.company || undefined,
+				deptId: filterForm.value.hostDeptId || undefined
+			};
+
+			let res;
+			if (userRole.value === 'host') {
+				res = await getHostVisitorPage(queryParams);
+			} else if (userRole.value === 'guard') {
+				res = await getGuardVisitorPage(queryParams);
+			} else if (userRole.value === 'admin') {
+				res = await getAdminVisitorPage(queryParams);
+			} else {
+				res = await getVisitorPage(queryParams);
+			}
+
+			if (res.code === '00000' && res.data) {
+				const newList = res.data.list || [];
+				if (pageNum.value === 1) {
+					recordList.value = newList;
+				} else {
+					recordList.value = recordList.value.concat(newList);
+				}
+				total.value = res.data.total || 0;
+			} else {
+				uni.showToast({
+					title: res.msg || '获取数据失败',
+					icon: 'none'
+				});
+			}
+		} catch (error) {
+			console.error('拉取记录异常:', error);
+			uni.showToast({
+				title: '网络请求异常',
+				icon: 'none'
+			});
+		} finally {
+			uni.hideLoading();
+		}
+	};
+
+	const loadMore = () => {
+		if (recordList.value.length >= total.value) return;
+		pageNum.value++;
+		fetchRecordList();
+	};
+
+	const getStatusText = (status, hostStatus, adminStatus) => {
+		if (hostStatus === 2 || adminStatus === 2 || status === 2) return '已拒绝/失效';
+		if (status === 1) return '已完成到访';
+		if (hostStatus === 1 && adminStatus === 1 && status === 0) return '待来访(已全审)';
+		return '审批中';
 	};
 
 	const emptyTip = computed(() => {
-		if (userRole.value === 'guard') return '今日暂无已通过待到访的访客';
+		if (userRole.value === 'guard') return '今日暂无双重审核通过的待到访访客';
 		return '未查询到符合条件的记录';
-	});
-
-	// 模拟系统后台全量库数据
-	const allBackendRecords = ref([{
-			id: 1,
-			visitorName: '张三',
-			phone: '13800138001',
-			company: '腾讯科技',
-			hostName: '李总',
-			hostDept: '技术部',
-			reason: '项目洽谈',
-			visitDate: todayStr,
-			visitTime: '14:00',
-			status: 3
-		},
-		{
-			id: 2,
-			visitorName: '王五',
-			phone: '13900139002',
-			company: '阿里巴巴',
-			hostName: '赵总',
-			hostDept: '市场部',
-			reason: '市场合作',
-			visitDate: todayStr,
-			visitTime: '10:00',
-			status: 4
-		},
-		{
-			id: 3,
-			visitorName: '李四',
-			phone: '13700137003',
-			company: '字节跳动',
-			hostName: '李总',
-			hostDept: '技术部',
-			reason: '面试',
-			visitDate: '2026-05-15',
-			visitTime: '09:30',
-			status: 1
-		},
-		{
-			id: 4,
-			visitorName: '赵六',
-			phone: '13600136004',
-			company: '小微企业',
-			hostName: '李总',
-			hostDept: '技术部',
-			reason: '送文件',
-			visitDate: '2026-06-01',
-			visitTime: '16:00',
-			status: 4
-		},
-		{
-			id: 5,
-			visitorName: '孙七',
-			phone: '13500135005',
-			company: '推销公司',
-			hostName: '李总',
-			hostDept: '技术部',
-			reason: '推销产品',
-			visitDate: '2026-06-10',
-			visitTime: '11:00',
-			status: 2
-		}
-	]);
-
-	const getStatusText = (status) => {
-		const map = {
-			0: '待审核',
-			1: '审批中',
-			2: '被访人拒绝',
-			3: '待到访',
-			4: '已到访完成'
-		};
-		return map[status] || '未知';
-	};
-
-	// 核心过滤与统计查询逻辑
-	const filteredList = computed(() => {
-		let list = allBackendRecords.value;
-
-		// 1. 基础权限过滤
-		if (userRole.value === 'host') {
-			list = list.filter(item => item.hostName === currentHostName);
-		} else if (userRole.value === 'guard') {
-			// 门岗强制只能看今天且通过的，不参与高级筛选
-			return list.filter(item => item.visitDate === todayStr && (item.status === 3 || item.status === 4));
-		}
-
-		// 2. 高级筛选 - 时间区间过滤
-		if (filterForm.value.startDate) {
-			list = list.filter(item => new Date(item.visitDate) >= new Date(filterForm.value.startDate));
-		}
-		if (filterForm.value.endDate) {
-			list = list.filter(item => new Date(item.visitDate) <= new Date(filterForm.value.endDate));
-		}
-
-		// 3. 高级筛选 - 来访单位模糊查询
-		if (filterForm.value.company) {
-			list = list.filter(item => item.company.includes(filterForm.value.company));
-		}
-
-		// 4. 高级筛选 - 员工部门查询 (仅管理员有效)
-		if (userRole.value === 'admin' && filterForm.value.hostDept && filterForm.value.hostDept !== '全部部门') {
-			list = list.filter(item => item.hostDept === filterForm.value.hostDept);
-		}
-
-		return list.sort((a, b) => new Date(b.visitDate) - new Date(a.visitDate));
 	});
 
 	const navToDetail = (id) => {
@@ -246,7 +277,6 @@
 		});
 	};
 </script>
-
 <style scoped>
 	.record-container {
 		display: flex;
@@ -255,7 +285,6 @@
 		background-color: #f5f7fa;
 	}
 
-	/* 顶部统计条与筛选按钮 */
 	.info-bar {
 		display: flex;
 		justify-content: space-between;
@@ -283,7 +312,6 @@
 		font-size: 20rpx;
 	}
 
-	/* 高级筛选面板 */
 	.filter-panel {
 		background-color: #fff;
 		padding: 30rpx;
@@ -424,10 +452,9 @@
 		font-weight: bold;
 	}
 
-	.status-0,
 	.status-1 {
-		background-color: #fff7e6;
-		color: #fa8c16;
+		background-color: #f6ffed;
+		color: #52c41a;
 	}
 
 	.status-2 {
@@ -435,14 +462,9 @@
 		color: #f5222d;
 	}
 
-	.status-3 {
-		background-color: #e6f7ff;
-		color: #1890ff;
-	}
-
-	.status-4 {
-		background-color: #f6ffed;
-		color: #52c41a;
+	.status-0 {
+		background-color: #fff7e6;
+		color: #fa8c16;
 	}
 
 	.card-content .row {
@@ -477,5 +499,12 @@
 		color: #d46b08;
 		text-align: center;
 		font-weight: 500;
+	}
+
+	.no-more {
+		text-align: center;
+		font-size: 24rpx;
+		color: #ccc;
+		padding: 20rpx 0;
 	}
 </style>
