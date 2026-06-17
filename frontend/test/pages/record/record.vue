@@ -25,7 +25,7 @@
       </view>
     </view>
 
-    <scroll-view class="list-container">
+    <scroll-view class="list-container" scroll-y @scrolltolower="onReachBottom">
       <view v-if="recordList.length > 0">
         <view v-for="item in recordList" :key="item.id" class="record-card" @click="navToDetail(item.id)">
           <view class="card-header">
@@ -77,16 +77,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app';
-// 💡 核心修复：引入你们项目自带的 request.js，它会自动带上 Token 并处理报错！
+import { onPullDownRefresh, onReachBottom as uniOnReachBottom } from '@dcloudio/uni-app';
 import { request } from '@/utils/request.js';
 
-// 1. 页签数据定义
+// 1. 页签数据定义 (新增已失效)
 const mainTabs = [
   { id: 'pending', name: '待审批' },
   { id: 'approved', name: '待来访' },
   { id: 'visited', name: '已来访' },
-  { id: 'rejected', name: '已拒绝' }
+  { id: 'rejected', name: '已拒绝' },
+  { id: 'invalid', name: '已失效' } 
 ];
 
 const subTabs = [
@@ -98,7 +98,7 @@ const subTabs = [
 const currentMainTab = ref('pending');
 const currentSubTab = ref('visited_person');
 const recordList = ref([]);
-const hasEmptyImg = ref(false); // 是否有默认空状态图，如果没有图设为 false 就只显示文字
+const hasEmptyImg = ref(false); 
 
 // 分页与加载控制
 const pageNum = ref(1);
@@ -131,27 +131,26 @@ const buildQueryParams = () => {
     params.applicationStatus = 1;
   } else if (currentMainTab.value === 'rejected') {
     params.applicationStatus = 2;
+  } else if (currentMainTab.value === 'invalid') {
+    // 💡 新增：已失效页签，专门查状态 3（已撤销）
+    params.applicationStatus = 3;
   }
 
   return params;
 };
 
-// 4. 获取数据方法（已修复：使用项目自定义 request）
+// 4. 获取数据方法
 const fetchRecordList = async (append = false) => {
   try {
     const queryParams = buildQueryParams();
     
-    // 发起正式的网络请求
     const res = await request({
       url: '/api/v1/visitor-applications', 
       method: 'GET',
       data: queryParams
     });
 
-    // youlai-boot 封装的 request 成功后通常直接返回数据实体
-    // 兼容处理：尝试获取 list 和 total
     if (res) {
-      // 有些封装返回 res.data.list，有些直接返回 res.list
       const rows = res.data?.list || res.list || []; 
       const total = res.data?.total || res.total || 0;
       
@@ -161,12 +160,10 @@ const fetchRecordList = async (append = false) => {
         recordList.value = rows;
       }
       
-      // 判定是否还有更多分页数据
       hasMore.value = recordList.value.length < total;
     }
   } catch (error) {
     console.error('API请求错误:', error);
-    // request.js 里通常已经有统一的报错 Toast，这里仅作降级处理
   } finally {
     if (isRefreshing.value) {
       uni.stopPullDownRefresh();
@@ -179,7 +176,6 @@ const fetchRecordList = async (append = false) => {
 const switchMainTab = (tabId) => {
   if (currentMainTab.value === tabId) return;
   currentMainTab.value = tabId;
-  // 切回待审批时，默认重置到被访人审批子项
   if (tabId === 'pending') {
     currentSubTab.value = 'visited_person';
   }
@@ -213,14 +209,21 @@ onPullDownRefresh(() => {
   fetchRecordList(false);
 });
 
-onReachBottom(() => {
+// 手动绑定的滚动触底事件（兼容部分 scroll-view 场景）
+const onReachBottom = () => {
   if (!hasMore.value) return;
   pageNum.value++;
   fetchRecordList(true);
+};
+
+// 小程序原生的触底事件（兼容页面级滚动）
+uniOnReachBottom(() => {
+  onReachBottom();
 });
 
 // 8. 辅助工具函数：格式化展现卡片状态文本和样式
 const getStatusText = (item) => {
+  if (item.applicationStatus === 3) return '已撤销'; // 💡 新增状态文本
   if (item.applicationStatus === 1) return '已来访';
   if (item.applicationStatus === 2) return '已拒绝';
   
@@ -231,8 +234,10 @@ const getStatusText = (item) => {
 };
 
 const getStatusClass = (item) => {
+  if (item.applicationStatus === 3) return 'status-invalid'; // 💡 新增状态样式类
   if (item.applicationStatus === 1) return 'status-visited';
   if (item.applicationStatus === 2) return 'status-rejected';
+  
   if (item.visitedPersonApprovalStatus === 0) return 'status-pending-user';
   if (item.visitedPersonApprovalStatus === 1 && item.adminApprovalStatus === 0) return 'status-pending-admin';
   return 'status-approved';
@@ -240,13 +245,13 @@ const getStatusClass = (item) => {
 
 const formatDateTime = (date, time) => {
   if (!date) return '时间未定';
-  // 拼接年月日和时间点
   return `${date} ${time || ''}`.trim();
 };
+
 // 跳转到详情页
 const navToDetail = (id) => {
   uni.navigateTo({
-    url: `/pages/record/detail?id=${id}`, // 假设你的详情页建在这里
+    url: `/pages/record/detail?id=${id}`, 
     fail: () => {
       uni.showToast({ title: '详情页路径不存在，请先创建', icon: 'none' });
     }
@@ -256,33 +261,40 @@ const navToDetail = (id) => {
 
 <style scoped lang="scss">
 .container {
-  min-height: 100vh;
+  height: 100vh;
   background-color: #f6f7f9;
   display: flex;
   flex-direction: column;
 }
 
-/* 一级大标题导航样式 */
+/* 一级大标题导航样式 - 增加横向滚动支持以容纳更多标签 */
 .tabs-main {
   display: flex;
   background-color: #ffffff;
-  padding: 0 10px;
   border-bottom: 1rpx solid #eeeeee;
   position: sticky;
   top: 0;
   z-index: 10;
+  overflow-x: auto; /* 允许横向滚动 */
+  white-space: nowrap; /* 文本不换行 */
+  
+  /* 隐藏滚动条 */
+  &::-webkit-scrollbar {
+    display: none;
+  }
   
   .tab-main-item {
     flex: 1;
+    min-width: 140rpx; /* 保证每个标签的最小宽度 */
     text-align: center;
-    padding: 14px 0;
+    padding: 14px 10px;
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     
     .tab-text {
-      font-size: 15px;
+      font-size: 14px; /* 字体稍微调小一点，防止拥挤 */
       color: #666666;
       font-weight: 500;
     }
@@ -291,14 +303,14 @@ const navToDetail = (id) => {
       .tab-text {
         color: #1a1a1a;
         font-weight: bold;
-        font-size: 16px;
+        font-size: 15px;
       }
     }
     
     .tab-line {
       position: absolute;
       bottom: 0;
-      width: 28px;
+      width: 24px;
       height: 3px;
       background-color: #2979ff;
       border-radius: 2px;
@@ -338,6 +350,7 @@ const navToDetail = (id) => {
   flex: 1;
   padding: 12px;
   box-sizing: border-box;
+  height: 0; /* 让 scroll-view 正常工作 */
 }
 
 /* 数据记录卡片精美样式 */
@@ -433,8 +446,14 @@ const navToDetail = (id) => {
 }
 
 .status-rejected {
-  color: #909399;
-  background-color: rgba(144, 147, 153, 0.1);
+  color: #f5222d;
+  background-color: rgba(245, 34, 45, 0.1);
+}
+
+/* 💡 新增：已失效（撤销）的柔和灰色标签 */
+.status-invalid {
+  color: #999999;
+  background-color: rgba(153, 153, 153, 0.1);
 }
 
 /* 上拉底部加载状态提示样式 */

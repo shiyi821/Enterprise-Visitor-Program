@@ -202,4 +202,33 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
+    @Override
+    public boolean cancelApplication(Long id) {
+        VisitorApplication application = new VisitorApplication();
+        application.setId(id);
+        application.setApplicationStatus(3); // 3 代表已撤销
+        application.setVisitedPersonApprovalStatus(0); // 审批状态重置为0
+        application.setAdminApprovalStatus(0); // 审批状态重置为0
+
+        // 建议：清空之前可能留下的审批时间和人
+        application.setVisitedApprovalTime(null);
+        application.setAdminApprovalTime(null);
+
+        return this.updateById(application);
+    }
+
+    @Override
+    public boolean rebookApplication(Long id) {
+        VisitorApplication application = new VisitorApplication();
+        application.setId(id);
+        application.setApplicationStatus(0); // 0 代表待来访/审核中
+        application.setVisitedPersonApprovalStatus(0); // 审批状态重置为0
+        application.setAdminApprovalStatus(0); // 审批状态重置为0
+
+        // 重新预约等同于重新提交，清空旧的审批记录
+        application.setVisitedApprovalTime(null);
+        application.setAdminApprovalTime(null);
+
+        return this.updateById(application);
+    }
 }

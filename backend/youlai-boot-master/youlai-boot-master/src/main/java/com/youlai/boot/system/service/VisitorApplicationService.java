@@ -69,6 +69,8 @@ public interface VisitorApplicationService extends IService<VisitorApplication> 
      * 门岗核验放行
      */
     boolean passApplication(Long id);
+    boolean cancelApplication(Long id);
+    boolean rebookApplication(Long id);
 
     /**
      * 门卫视角-分页查询今日待访以及历史记录 (💡 核心新增)
