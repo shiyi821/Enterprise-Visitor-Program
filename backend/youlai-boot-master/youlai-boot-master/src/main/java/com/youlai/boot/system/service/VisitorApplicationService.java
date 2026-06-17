@@ -5,63 +5,58 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.youlai.boot.system.model.entity.VisitorApplication;
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
-import com.youlai.boot.system.model.vo.AdminDashboardVO; // 新增导入
+import com.youlai.boot.system.model.vo.AdminDashboardVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 
 public interface VisitorApplicationService extends IService<VisitorApplication> {
+
     /**
-     * 分页查询访客申请列表
-     *
-     * @param queryParams 查询参数
-     * @return 分页结果
+     * 分页查询访客申请列表 (普通申请人视角)
      */
     IPage<VisitorApplicationPageVO> getApplicationPage(VisitorApplicationQuery queryParams);
 
     /**
      * 新增访客申请
-     *
-     * @param formData 表单数据
-     * @return 操作结果
      */
     boolean saveApplication(VisitorApplicationForm formData);
 
     /**
      * 获取访客申请表单回显数据
-     *
-     * @param id 申请ID
-     * @return 表单数据
      */
     VisitorApplicationForm getApplicationFormData(Long id);
 
     /**
      * 修改访客申请
-     *
-     * @param id       申请ID
-     * @param formData 表单数据
-     * @return 操作结果
      */
     boolean updateApplication(Long id, VisitorApplicationForm formData);
 
     /**
      * 批量删除访客申请
-     *
-     * @param ids 申请ID，多个英文逗号分隔
-     * @return 操作结果
      */
     boolean deleteApplications(String ids);
 
-    boolean auditApplication(Long id, Integer action);
-
+    /**
+     * 被访人视角-分页查询待审批记录
+     */
     IPage<VisitorApplicationPageVO> getAuditApplicationPage(VisitorApplicationQuery queryParams);
 
+    /**
+     * 被访人执行审批
+     */
+    boolean auditApplication(Long id, Integer action);
+
+    /**
+     * 管理员视角-分页查询审批记录
+     */
     IPage<VisitorApplicationPageVO> getAdminApprovalPage(VisitorApplicationQuery queryParams);
 
+    /**
+     * 管理员执行审批
+     */
     boolean adminAuditApplication(Long id, Integer action);
 
     /**
      * 获取管理台看板动态统计数据
-     *
-     * @return 包含到访人数、待我审核、待被访人审核、员工总数的视图对象
      */
     AdminDashboardVO getDashboardStats();
 
@@ -70,7 +65,15 @@ public interface VisitorApplicationService extends IService<VisitorApplication> 
      */
     VisitorApplicationPageVO getApplicationDetail(Long id);
 
+    /**
+     * 门岗核验放行
+     */
     boolean passApplication(Long id);
     boolean cancelApplication(Long id);
     boolean rebookApplication(Long id);
+
+    /**
+     * 门卫视角-分页查询今日待访以及历史记录 (💡 核心新增)
+     */
+    IPage<VisitorApplicationPageVO> getGuardApplicationPage(VisitorApplicationQuery queryParams);
 }
