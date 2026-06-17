@@ -4,13 +4,15 @@
 			<view class="main-status">{{ getStatusText(detail) }}</view>
 			<view class="sub-status">申请单号：{{ detail.id }}</view>
 		</view>
-<view class="info-card qr-card" v-show="detail.visitedPersonApprovalStatus === 1 && detail.adminApprovalStatus === 1 && detail.applicationStatus === 0">
+
+		<view class="info-card qr-card" v-show="detail.visitedPersonApprovalStatus === 1 && detail.adminApprovalStatus === 1 && detail.applicationStatus === 0">
             <view class="qr-title">入校/入厂核验码</view>
             <view class="qr-wrapper">
-                <uqrcode ref="uQRCode" canvas-id="visitorQrCode" :value="String(detail.id)" :size="150" />
+				<image style="width: 150px; height: 150px;" :src="'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + detail.id" mode="aspectFit"></image>
             </view>
             <view class="qr-tips">请在门岗处出示此二维码进行扫码核验</view>
         </view>
+
 		<view class="info-card">
 			<view class="card-title">基础信息</view>
 			<view class="info-item">
@@ -102,13 +104,18 @@
 					<view class="time" v-if="detail.guardTime">{{ detail.guardTime }}</view>
 				</view>
 			</view>
-
 		</view>
+
+		<view class="bottom-actions" v-if="canCancel || canRebook">
+			<button class="action-btn btn-cancel" v-if="canCancel" @click="handleCancel">撤销预约</button>
+			<button class="action-btn btn-rebook" v-if="canRebook" @click="handleRebook">重新预约</button>
+		</view>
+
 	</view>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import { request } from '@/utils/request.js';
 
@@ -128,11 +135,9 @@ const fetchDetail = async (id) => {
 			url: `/api/v1/visitor-applications/${id}/detail`,
 			method: 'GET'
 		});
-		// youlai-boot 的 request 通常直接剥除 code 包装
 		if (res && res.data) {
 			detail.value = res.data;
 		} else if (res && res.id) {
-			// 兼容不同版本的 request 封装
 			detail.value = res;
 		}
 		uni.hideLoading();
@@ -142,8 +147,68 @@ const fetchDetail = async (id) => {
 	}
 };
 
-// 各种辅助展示的方法
+// ================== 新增：操作控制逻辑 ==================
+// 是否允许撤销 (待来访、未撤销、未来访 时可以撤销)
+const canCancel = computed(() => {
+	if (!detail.value) return false;
+	return detail.value.applicationStatus === 0;
+});
+
+// 是否允许重新预约 (已被拒绝 或 已撤销 时可以重新预约)
+const canRebook = computed(() => {
+	if (!detail.value) return false;
+	return detail.value.applicationStatus === 2 || detail.value.applicationStatus === 3;
+});
+
+// 撤销动作
+const handleCancel = () => {
+	uni.showModal({
+		title: '提示',
+		content: '确定要撤销此次预约申请吗？',
+		success: async (res) => {
+			if (res.confirm) {
+				try {
+					uni.showLoading({ title: '处理中...' });
+					await request({
+						url: `/api/v1/visitor-applications/${detail.value.id}/cancel`,
+						method: 'PUT'
+					});
+					uni.showToast({ title: '已撤销', icon: 'success' });
+					fetchDetail(detail.value.id); // 刷新详情页数据
+				} catch (error) {
+					uni.hideLoading();
+				}
+			}
+		}
+	});
+};
+
+// 重新预约动作
+const handleRebook = () => {
+	uni.showModal({
+		title: '提示',
+		content: '将重新提交该预约申请，确定吗？',
+		success: async (res) => {
+			if (res.confirm) {
+				try {
+					uni.showLoading({ title: '处理中...' });
+					await request({
+						url: `/api/v1/visitor-applications/${detail.value.id}/rebook`,
+						method: 'PUT'
+					});
+					uni.showToast({ title: '重新预约成功', icon: 'success' });
+					fetchDetail(detail.value.id); // 刷新详情页数据
+				} catch (error) {
+					uni.hideLoading();
+				}
+			}
+		}
+	});
+};
+
+// ================== 展示相关的计算方法 ==================
 const getStatusText = (item) => {
+	if (item.applicationStatus === 3) return '已撤销'; // 新增状态 3
 	if (item.applicationStatus === 2 || item.visitedPersonApprovalStatus === 2 || item.adminApprovalStatus === 2) return '申请已拒绝';
 	if (item.applicationStatus === 1) return '已来访 (流程结束)';
 	if (item.visitedPersonApprovalStatus === 0) return '等待被访人审批';
@@ -153,6 +218,7 @@ const getStatusText = (item) => {
 };
 
 const getBgClass = (item) => {
+	if (item.applicationStatus === 3) return 'bg-cancel'; // 新增状态 3 背景色
 	if (item.applicationStatus === 2 || item.visitedPersonApprovalStatus === 2 || item.adminApprovalStatus === 2) return 'bg-reject';
 	if (item.applicationStatus === 1) return 'bg-done';
 	return 'bg-processing';
@@ -169,7 +235,7 @@ const getTimelineClass = (status) => {
 .detail-container {
 	min-height: 100vh;
 	background-color: #f5f6f8;
-	padding-bottom: 40rpx;
+	padding-bottom: 140rpx; /* 增加底部内边距，给固定按钮留出空间 */
 }
 
 .status-header {
@@ -180,6 +246,7 @@ const getTimelineClass = (status) => {
 .bg-processing { background: linear-gradient(135deg, #1890ff, #0050b3); }
 .bg-done { background: linear-gradient(135deg, #52c41a, #237804); }
 .bg-reject { background: linear-gradient(135deg, #f5222d, #a8071a); }
+.bg-cancel { background: linear-gradient(135deg, #8c8c8c, #595959); } /* 撤销状态的灰色渐变 */
 
 .main-status {
 	font-size: 40rpx;
@@ -324,7 +391,7 @@ const getTimelineClass = (status) => {
 .qr-wrapper {
     width: 150px;
     height: 150px;
-    background-color: #f5f5f5; /* 占位色，防止二维码还没生成时难看 */
+    background-color: #fff;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -333,5 +400,39 @@ const getTimelineClass = (status) => {
     font-size: 24rpx;
     color: #ff9900;
     margin-top: 20rpx;
+}
+
+/* ================= 底部操作按钮样式 ================= */
+.bottom-actions {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	padding: 20rpx 40rpx 60rpx; /* 适配 iPhone 底部安全区 */
+	background-color: #fff;
+	box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.05);
+	display: flex;
+	justify-content: space-between;
+	z-index: 100;
+}
+
+.action-btn {
+	flex: 1;
+	height: 88rpx;
+	line-height: 88rpx;
+	border-radius: 44rpx;
+	font-size: 32rpx;
+	font-weight: bold;
+}
+
+.btn-cancel {
+	background-color: #f5f5f5;
+	color: #666;
+	border: 1rpx solid #ddd;
+}
+
+.btn-rebook {
+	background-color: #1890ff;
+	color: #fff;
 }
 </style>

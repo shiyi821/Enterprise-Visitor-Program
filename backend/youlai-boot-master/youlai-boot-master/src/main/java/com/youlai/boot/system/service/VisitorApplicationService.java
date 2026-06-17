@@ -71,4 +71,6 @@ public interface VisitorApplicationService extends IService<VisitorApplication> 
     VisitorApplicationPageVO getApplicationDetail(Long id);
 
     boolean passApplication(Long id);
+    boolean cancelApplication(Long id);
+    boolean rebookApplication(Long id);
 }

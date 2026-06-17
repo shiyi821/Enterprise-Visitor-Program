@@ -99,7 +99,7 @@ const switchTab = (tab) => {
     resetAndFetch();
 };
 
-// 【核心调整2】重构被访人侧的查询参数，对应新Tab的状态逻辑
+// 【核心调整2】重构被访人侧的查询参数，增加整体状态拦截
 const buildQueryParams = () => {
     const params = {
         pageNum: pageNum.value,
@@ -107,28 +107,28 @@ const buildQueryParams = () => {
     };
 
     if (userRole.value === 'admin') {
-        // 管理员视角（保持原有逻辑）
         if (currentTab.value === 'todo') {
             params.visitedPersonApprovalStatus = 1;
             params.adminApprovalStatus = 0;
+            // 💡 新增：必须是未撤销的单子才出现在待办里
+            params.applicationStatus = 0; 
         } else if (currentTab.value === 'passed') {
             params.adminApprovalStatus = 1;
         } else if (currentTab.value === 'rejected') {
             params.applicationStatus = 2;
         }
     } else {
-        // 被访人视角（新逻辑）
         if (currentTab.value === 'todo') {
             // 待我审批：被访人未审批
             params.visitedPersonApprovalStatus = 0;
+            // 💡 新增：防止撤销的单子（状态3）“诈尸”跑到被访人的待办列表
+            params.applicationStatus = 0; 
         } else if (currentTab.value === 'passed') {
-            // 我已同意：被访人已审批通过（不管管理员后续状态）
+            // 我已同意
             params.visitedPersonApprovalStatus = 1;
         } else if (currentTab.value === 'rejected') {
-			params.visitedPersonApprovalStatus = 2;
-            // 已拒绝：被访人拒绝 OR 管理员拒绝（两种拒绝都展示）
-            //params.rejectType = 'all'; // 后端需支持该参数，或直接传以下两个状态
-            
+            // 已拒绝
+            params.visitedPersonApprovalStatus = 2;
         }
     }
     return params;
@@ -204,22 +204,23 @@ const doAudit = (id, actionStatus) => {
     });
 };
 
-// 【核心调整3】优化状态文本，清晰区分拒绝主体（被访人/管理员）
 const getStatusText = (item) => {
-    // 优先判断拒绝状态（最易混淆的场景）
-    if (item.visitedPersonApprovalStatus === 2) return '我已拒绝'; // 被访人自己拒绝
-    if (item.adminApprovalStatus === 2) return '管理员已拒绝'; // 管理员拒绝
-    // 已完成（来访结束）
+    // 💡 新增：最优先判断是否已撤销
+    if (item.applicationStatus === 3) return '访客已撤销'; 
+
+    if (item.visitedPersonApprovalStatus === 2) return '我已拒绝'; 
+    if (item.adminApprovalStatus === 2) return '管理员已拒绝'; 
     if (item.applicationStatus === 1) return '已来访';
-    // 待审批状态
     if (item.visitedPersonApprovalStatus === 0) return '待我审批';
     if (item.visitedPersonApprovalStatus === 1 && item.adminApprovalStatus === 0) return '待管理员审批';
     if (item.visitedPersonApprovalStatus === 1 && item.adminApprovalStatus === 1) return '待来访';
     return '未知状态';
 };
 
-// 【微调】状态样式类，拒绝状态统一用reject（区分来源靠文本，样式统一）
 const getStatusClass = (item) => {
+    // 💡 新增：撤销状态的样式
+    if (item.applicationStatus === 3) return 'status-cancel'; 
+    
     if (item.visitedPersonApprovalStatus === 2 || item.adminApprovalStatus === 2) return 'status-reject';
     if (item.applicationStatus === 1) return 'status-done';
     if (item.visitedPersonApprovalStatus === 0 || item.adminApprovalStatus === 0) return 'status-todo';
@@ -397,4 +398,5 @@ const navToDetail = (id) => {
 		font-size: 24rpx;
 		color: #999;
 	}
+	.status-cancel { background-color: #f5f5f5; color: #999; }
 </style>

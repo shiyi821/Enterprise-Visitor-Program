@@ -146,4 +146,23 @@ public class VisitorApplicationController {
         boolean result = visitorApplicationService.passApplication(id);
         return Result.judge(result);
     }
+    @Operation(summary = "访客端-撤销预约")
+    @PutMapping("/{id}/cancel")
+    @Log(module = LogModuleEnum.VISITOR, value = ActionTypeEnum.UPDATE)
+    public Result<Void> cancelApplication(
+        @Parameter(description = "申请ID") @PathVariable Long id
+    ) {
+        boolean result = visitorApplicationService.cancelApplication(id);
+        return Result.judge(result);
+    }
+
+    @Operation(summary = "访客端-重新预约")
+    @PutMapping("/{id}/rebook")
+    @Log(module = LogModuleEnum.VISITOR, value = ActionTypeEnum.UPDATE)
+    public Result<Void> rebookApplication(
+        @Parameter(description = "申请ID") @PathVariable Long id
+    ) {
+        boolean result = visitorApplicationService.rebookApplication(id);
+        return Result.judge(result);
+    }
 }
