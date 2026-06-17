@@ -135,8 +135,7 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
     public AdminDashboardVO getDashboardStats() {
         AdminDashboardVO vo = new AdminDashboardVO();
         long visitorCount = this.count(new LambdaQueryWrapper<VisitorApplication>()
-            .eq(VisitorApplication::getVisitedPersonApprovalStatus, 1)
-            .eq(VisitorApplication::getAdminApprovalStatus, 1));
+            .eq(VisitorApplication::getApplicationStatus, 1));
         vo.setTotalVisitorCount((int) visitorCount);
 
         long adminPending = this.count(new LambdaQueryWrapper<VisitorApplication>()
