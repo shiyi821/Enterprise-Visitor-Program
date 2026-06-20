@@ -14,7 +14,7 @@ spring:
       database: 12
       host: 127.0.0.1
       port: 6379
-      #password: 123456
+#      password: 123456
       timeout: 10s
       lettuce:
         pool:
@@ -219,3 +219,11 @@ wx:
   miniapp:
     appid: Your_AppId
     secret: Your_AppSecret
+
+ai:
+  # 替换成你完整的sk-开头密钥
+  api-key: "sk-jlW0NVimQsprmPKBNIgcAozRhcce6J4GnNURJJjfowcJbyyf"
+  # Moonshot官方接口地址，固定不变
+  url: "https://api.moonshot.cn/v1/chat/completions"
+  # 免费模型，完全满足课设需求
+  model: "moonshot-v1-8k"

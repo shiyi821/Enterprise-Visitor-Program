@@ -267,7 +267,6 @@ const navToDetail = (id) => {
   flex-direction: column;
 }
 
-/* 一级大标题导航样式 - 增加横向滚动支持以容纳更多标签 */
 .tabs-main {
   display: flex;
   background-color: #ffffff;
@@ -275,28 +274,22 @@ const navToDetail = (id) => {
   position: sticky;
   top: 0;
   z-index: 10;
-  overflow-x: auto; /* 允许横向滚动 */
-  white-space: nowrap; /* 文本不换行 */
-  
-  /* 隐藏滚动条 */
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  width: 100%;
   
   .tab-main-item {
-    flex: 1;
-    min-width: 140rpx; /* 保证每个标签的最小宽度 */
+    flex: 1; /* 自动将屏幕宽度等分成5份 */
     text-align: center;
-    padding: 14px 10px;
+    padding: 14px 0; /* 去掉左右的 padding，防止撑大容器 */
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     
     .tab-text {
-      font-size: 14px; /* 字体稍微调小一点，防止拥挤 */
+      font-size: 14px; /* 维持稍小的字体以防5个字挤在一起 */
       color: #666666;
       font-weight: 500;
+      transition: all 0.2s ease;
     }
     
     &.active {

@@ -7,171 +7,207 @@
 
 		<view class="content">
 			<view class="empty-box" v-if="messageList.length === 0">
-				<image class="empty-img" src="https://img.icons8.com/ios/100/A6B1BB/box-important--v1.png"></image>
-				<view class="empty-text">暂无最新消息</view>
+				<image class="empty-img" src="https://img.icons8.com/ios/100/A6B1BB/box-important--v1.png"></image>				<view class="empty-text">暂无最新消息</view>
 			</view>
 
 			<view class="message-list" v-else>
-				<view class="msg-card" v-for="item in messageList" :key="item.id" @click="handleMessageClick(item)">
+				<view 
+					class="msg-card" 
+					v-for="item in messageList" 
+					:key="item.id" 
+					@click="handleMessageClick(item)"
+				>
+					<view class="unread-dot" v-if="item.isRead === 0"></view>
+
 					<view class="card-header">
 						<view class="title-wrap">
-							<image v-if="item.type === 'success'" class="icon-type" src="https://img.icons8.com/ios-filled/50/2ECC71/ok--v1.png" />
-							<image v-else-if="item.type === 'reject'" class="icon-type" src="https://img.icons8.com/ios-filled/50/E74C3C/cancel.png" />
+							<image v-if="item.type === 1" class="icon-type" src="https://img.icons8.com/ios-filled/50/2ECC71/ok--v1.png" />
+							<image v-else-if="item.type === 2" class="icon-type" src="https://img.icons8.com/ios-filled/50/E74C3C/cancel.png" />
 							<image v-else class="icon-type" src="https://img.icons8.com/ios-filled/50/3B5BDB/bell.png" />
 							
-							<text class="title" :class="{'is-read-title': item.isRead}">{{ item.title }}</text>
+							<text class="title">{{ item.title || '系统通知' }}</text>
 						</view>
-						<view class="date">{{ item.time }}</view>
 					</view>
 					
-					<view class="unread-dot" v-if="!item.isRead"></view>
-
-					<view class="card-body" :class="{'is-read-body': item.isRead}">
-						{{ item.content }}
+					<view class="card-body">
+						<text class="desc">来源：{{ item.publisherName || '系统中心' }}</text>
+						<text class="time">{{ item.publishTime || '刚刚' }}</text>
 					</view>
+				</view>
 
-					<view class="card-footer">
-						<text class="footer-text">查看详情</text>
-						<text class="arrow">&gt;</text>
-					</view>
+				<view class="load-more-text" v-if="messageList.length > 0">
+					<text>{{ hasMore ? '正在加载更多...' : '已经到底啦~' }}</text>
 				</view>
 			</view>
 		</view>
 	</view>
 </template>
 
-<script setup>
-import { ref } from 'vue';
+<script>
+import { request } from '@/utils/request.js'; // 👈 确保引入了你封装的请求工具
 
-const messageList = ref([
-	{
-		id: 1,
-		type: 'success',
-		title: '访客预约审批通过',
-		time: '刚刚',
-		content: '您提交的拜访申请（被访人：李经理，技术部）已通过审批。请在到达门岗时出示您的专属通行二维码进行核验放行。',
-		isRead: false
+export default {
+	data() {
+		return {
+			messageList: [], // 消息数据存储数组
+			queryParams: {
+				pageNum: 1,
+				pageSize: 10
+			},
+			hasMore: true, // 是否还有更多数据
+			loading: false // 防止并发请求锁
+		};
 	},
-	{
-		id: 2,
-		type: 'reject',
-		title: '访客预约被驳回',
-		time: '昨天 14:30',
-		content: '抱歉，您提交的拜访申请被驳回。驳回原因：被访人由于紧急会议今日不在园区，请修改来访时间后重新提交申请。',
-		isRead: false
-	},
-	{
-		id: 3,
-		type: 'info',
-		title: '系统维护通知',
-		time: '2026-06-10',
-		content: '尊敬的用户，系统将于本周日凌晨2:00-4:00进行服务器升级，期间可能会出现预约数据延迟同步的情况，敬请谅解。',
-		isRead: true
-	}
-]);
 
-const handleMessageClick = (item) => {
-	if (!item.isRead) {
-		item.isRead = true;
+	// 🛠️ 关键生命周期：每次切回该页面（比如查看详情返回后），都自动重新加载列表刷新未读状态
+	onShow() {
+		this.initList();
+	},
+
+	// 🌧️ 下拉刷新
+	onPullDownRefresh() {
+		this.initList(() => {
+			uni.stopPullDownRefresh();
+			uni.showToast({ title: '刷新成功', icon: 'none' });
+		});
+	},
+
+	// 🚀 上拉加载下一页
+	onReachBottom() {
+		if (!this.hasMore || this.loading) return;
+		this.queryParams.pageNum++;
+		this.fetchNoticeList();
+	},
+
+	methods: {
+		/**
+		 * 初始化/重置列表
+		 */
+		initList(callback = null) {
+			this.queryParams.pageNum = 1;
+			this.messageList = [];
+			this.hasMore = true;
+			this.fetchNoticeList(callback);
+		},
+
+		/**
+		 * 核心方法：拉取后端消息
+		 */
+		fetchNoticeList(callback = null) {
+			if (this.loading) return;
+			this.loading = true;
+
+			request({
+				url: '/api/v1/notices/my',
+				method: 'GET',
+				data: this.queryParams
+			})
+			.then(res => {
+				// 💡 修复 Bug 点：后端返回的是 PageResult 结构，需要通过 res.data.list 拿取数组
+				const list = res.data?.list || [];
+				const total = res.data?.total || 0;
+
+				if (this.queryParams.pageNum === 1) {
+					this.messageList = list;
+				} else {
+					this.messageList = this.messageList.concat(list);
+				}
+
+				// 判断是否加载完了所有数据
+				if (this.messageList.length >= total) {
+					this.hasMore = false;
+				}
+			})
+			.catch(err => {
+				console.error('获取通知列表失败：', err);
+				uni.showToast({ title: '获取列表失败', icon: 'none' });
+			})
+			.finally(() => {
+				this.loading = false;
+				if (callback) callback();
+			});
+		},
+
+		/**
+		 * 点击消息卡片事件
+		 */
+		handleMessageClick(item) {
+			// 1. 如果消息未读(0)，先调后端接口将其变更为已读状态
+			if (item.isRead === 0) {
+				request({
+					url: `/api/v1/notices/${item.id}/read`,
+					method: 'PUT'
+				}).then(() => {
+					item.isRead = 1; // 局部改变状态，红点瞬间消失
+				}).catch(e => console.error('标记已读失败', e));
+			}
+
+			// 2. 携带通知 ID 跳转到消息详情页 detail.vue
+			uni.navigateTo({
+				url: `/pages/notice/detail?id=${item.id}`
+			});
+		}
 	}
-	
-	uni.navigateTo({
-		url: `/pages/notice/detail?id=${item.id}`
-	});
 };
 </script>
 
 <style scoped>
-:global(page) {
-	background-color: #F5F7FA;
-}
-:global(page::-webkit-scrollbar), ::-webkit-scrollbar {
-	display: none !important;
-	width: 0 !important;
-	height: 0 !important;
-	color: transparent !important;
-	background: transparent !important;
-}
-
 .main {
 	min-height: 100vh;
-	background-color: #F5F7FA;
-	padding-bottom: 60rpx;
+	background-color: #F8F9FA;
 }
 
+/* 顶部渐变背景 */
 .top-bg {
-	width: 100%;
-	height: 280rpx;
-	background-color: #245381;
-	padding: 60rpx 40rpx 0;
-	box-sizing: border-box;
+	background: linear-gradient(135deg, #3B5BDB 0%, #228BE6 100%);
+	padding: 60rpx 40rpx 80rpx;
+	color: #FFFFFF;
 }
 
 .page-title {
 	font-size: 44rpx;
 	font-weight: bold;
-	color: #FFFFFF;
-	margin-bottom: 15rpx;
+	margin-bottom: 12rpx;
+	letter-spacing: 2rpx;
 }
 
 .page-desc {
 	font-size: 26rpx;
-	color: rgba(255, 255, 255, 0.8);
+	opacity: 0.85;
 }
 
+/* 内容外层 */
 .content {
-	padding: 0 30rpx;
-	margin-top: -80rpx;
-	position: relative;
-	z-index: 2;
+	padding: 30rpx;
+	margin-top: -40rpx;
 }
 
-.empty-box {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	padding-top: 150rpx;
-}
-.empty-img {
-	width: 120rpx;
-	height: 120rpx;
-	margin-bottom: 20rpx;
-	opacity: 0.5;
-}
-.empty-text {
-	font-size: 28rpx;
-	color: #95A5A6;
-}
-
-.message-list {
-	width: 100%;
-}
-
+/* 消息卡片 */
 .msg-card {
 	background-color: #FFFFFF;
-	border-radius: 24rpx;
+	border-radius: 20rpx;
 	padding: 35rpx 30rpx 30rpx;
 	margin-bottom: 30rpx;
-	box-shadow: 0 10rpx 30rpx rgba(149, 157, 165, 0.08);
+	box-shadow: 0 8rpx 20rpx rgba(149, 157, 165, 0.06);
 	position: relative;
-	transition: all 0.25s ease;
+	transition: all 0.2s ease;
 }
 
 .msg-card:active {
-	transform: scale(0.98);
-	box-shadow: 0 4rpx 10rpx rgba(149, 157, 165, 0.05);
+	transform: scale(0.99);
+	background-color: #FAFAFA;
 }
 
+/* 未读红点 */
 .unread-dot {
 	position: absolute;
 	top: 35rpx;
 	right: 30rpx;
-	width: 16rpx;
-	height: 16rpx;
+	width: 14rpx;
+	height: 14rpx;
 	background-color: #E74C3C;
 	border-radius: 50%;
-	box-shadow: 0 4rpx 8rpx rgba(231, 76, 60, 0.4);
+	box-shadow: 0 0 10rpx rgba(231, 76, 60, 0.5);
 }
 
 .card-header {
@@ -189,63 +225,60 @@ const handleMessageClick = (item) => {
 }
 
 .icon-type {
-	width: 36rpx;
-	height: 36rpx;
-	margin-right: 15rpx;
+	width: 38rpx;
+	height: 38rpx;
+	margin-right: 18rpx;
 	flex-shrink: 0;
 }
 
 .title {
-	font-size: 32rpx;
-	font-weight: 600;
+	font-size: 30rpx;
+	font-weight: bold;
 	color: #2C3E50;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	transition: color 0.3s;
-}
-
-.is-read-title {
-	color: #7F8C8D;
-	font-weight: 500;
-}
-
-.date {
-	font-size: 24rpx;
-	color: #A6B1BB;
-	flex-shrink: 0;
-	margin-top: 6rpx;
+	line-height: 1.4;
 }
 
 .card-body {
-	font-size: 28rpx;
-	color: #34495E;
-	line-height: 1.6;
-	margin-bottom: 25rpx;
-	transition: color 0.3s;
-}
-
-.is-read-body {
-	color: #95A5A6;
-}
-
-.card-footer {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	border-top: 1px solid #F1F2F6;
-	padding-top: 20rpx;
+	font-size: 24rpx;
+	color: #95A5A6;
+	border-top: 1rpx solid #F2F4F5;
+	padding-top: 15rpx;
+	margin-top: 15rpx;
 }
 
-.footer-text {
-	font-size: 26rpx;
-	color: #3B5BDB;
-	font-weight: 500;
+.time {
+	font-size: 22rpx;
 }
 
-.arrow {
-	color: #3B5BDB;
+/* 空状态样式 */
+.empty-box {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding-top: 150rpx;
+}
+
+.empty-img {
+	width: 140rpx;
+	height: 140rpx;
+	margin-bottom: 24rpx;
+	opacity: 0.7;
+}
+
+.empty-text {
 	font-size: 28rpx;
-	font-family: Consolas, monospace;
+	color: #95A5A6;
+}
+
+/* 底线提示文本 */
+.load-more-text {
+	text-align: center;
+	font-size: 24rpx;
+	color: #BDC3C7;
+	padding: 20rpx 0 40rpx;
 }
 </style>
