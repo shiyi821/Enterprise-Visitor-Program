@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -41,11 +42,9 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
     private final AiService aiService;         // 👈 顺应框架，通过 final 自动注入 AI 服务
     private final NoticeService noticeService; // 👈 顺应框架，通过 final 自动注入系统通知服务
 
-    /**
-     * 分页查询访客申请列表
-     */
     @Override
     public IPage<VisitorApplicationPageVO> getApplicationPage(VisitorApplicationQuery queryParams) {
+        // 绑定申请人自己
         queryParams.setUserId(SecurityUtils.getUserId());
         int pageNum = queryParams.getPageNum();
         int pageSize = queryParams.getPageSize();
@@ -53,9 +52,6 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
 
-    /**
-     * 新增访客申请
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean saveApplication(VisitorApplicationForm formData) {
@@ -68,9 +64,6 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return this.save(entity);
     }
 
-    /**
-     * 获取申请表单回显数据
-     */
     @Override
     public VisitorApplicationForm getApplicationFormData(Long id) {
         VisitorApplication entity = this.getById(id);
@@ -80,9 +73,6 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return formData;
     }
 
-    /**
-     * 修改访客申请
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean updateApplication(Long id, VisitorApplicationForm formData) {
@@ -94,26 +84,34 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return this.updateById(entity);
     }
 
-    /**
-     * 批量删除访客申请
-     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteApplications(String ids) {
         Assert.isTrue(StrUtil.isNotBlank(ids), "删除的数据不能为空");
+<<<<<<< HEAD
         List<String> idList = Arrays.stream(ids.split(","))
             .map(String::trim)
             .collect(Collectors.toList());
+=======
+        List<String> idList = Arrays.stream(ids.split(",")).map(String::trim).collect(Collectors.toList());
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         return this.removeByIds(idList);
     }
 
     @Override
     public IPage<VisitorApplicationPageVO> getAuditApplicationPage(VisitorApplicationQuery queryParams) {
+<<<<<<< HEAD
         queryParams.setVisitedPersonId(String.valueOf(SecurityUtils.getUserId()));
         queryParams.setUserId(null);
         int pageNum = queryParams.getPageNum();
         int pageSize = queryParams.getPageSize();
         Page<VisitorApplicationPageVO> page = new Page<>(pageNum, pageSize);
+=======
+        // 员工查自己的被访记录，VisitedPersonId在Query里被定义成了String，所以需要String.valueOf转换
+        queryParams.setVisitedPersonId(String.valueOf(SecurityUtils.getUserId()));
+        queryParams.setUserId(null); // 清除用户限制，否则查不到别人的提交
+        Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
 
@@ -125,34 +123,43 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
     public boolean auditApplication(Long id, Integer action) {
         VisitorApplication entity = this.getById(id);
         Assert.notNull(entity, "访客申请不存在");
-
-        if (action == 1) { // 1代表同意
+        if (action == 1) {
             entity.setVisitedPersonApprovalStatus(1);
-        } else if (action == 2) { // 2代表拒绝
+        } else if (action == 2) {
             entity.setVisitedPersonApprovalStatus(2);
+<<<<<<< HEAD
             entity.setApplicationStatus(2);
+=======
+            entity.setApplicationStatus(2); // 被访人拒绝整个流程终止
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         }
-
         return this.updateById(entity);
     }
 
+<<<<<<< HEAD
     /**
      * 管理员审批列表
      */
+=======
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
     @Override
     public IPage<VisitorApplicationPageVO> getAdminApprovalPage(VisitorApplicationQuery queryParams) {
         Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
 
+<<<<<<< HEAD
     /**
      * 管理员审批操作（💡 核心修改：审批通过后，给访客和被访人发送通知，并解决事务回滚问题）
      */
+=======
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean adminAuditApplication(Long id, Integer action) {
         VisitorApplication entity = this.getById(id);
         Assert.notNull(entity, "访客申请不存在");
+<<<<<<< HEAD
         Assert.isTrue(entity.getVisitedPersonApprovalStatus() == 1, "被访人未审批，无法操作");
         Assert.isTrue(entity.getAdminApprovalStatus() == 0, "该申请已审批，请勿重复操作");
 
@@ -165,8 +172,16 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
             entity.setApplicationStatus(2);
         } else {
             throw new IllegalArgumentException("非法的审批操作类型");
+=======
+        if (action == 1) {
+            entity.setAdminApprovalStatus(1);
+            entity.setApplicationStatus(0); // 整体流程流转到：待门岗核验(待来访)
+        } else if (action == 2) {
+            entity.setAdminApprovalStatus(2);
+            entity.setApplicationStatus(2);
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         }
-        entity.setAdminId(currentUserId);
+        entity.setAdminId(SecurityUtils.getUserId());
         entity.setAdminApprovalTime(LocalDateTime.now());
 
         // 1. 先执行核心的数据库状态更新
@@ -226,9 +241,6 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return isSuccess;
     }
 
-    /**
-     * 获取管理台看板动态统计数据
-     */
     @Override
     public AdminDashboardVO getDashboardStats() {
         AdminDashboardVO vo = new AdminDashboardVO();
@@ -248,15 +260,16 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
 
         long employeeCount = userService.count(new LambdaQueryWrapper<SysUser>()
             .eq(SysUser::getStatus, 1)
+<<<<<<< HEAD
             .exists("SELECT 1 FROM sys_user_role ur WHERE ur.user_id = sys_user.id AND ur.role_id IN (1, 2,4,5)"));
-        vo.setEmployeeCount((int) employeeCount);
+=======
+            .exists("SELECT 1 FROM sys_user_role ur WHERE ur.user_id = sys_user.id AND ur.role_id IN (1, 2, 4, 5)"));
 
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
+        vo.setEmployeeCount((int) employeeCount);
         return vo;
     }
 
-    /**
-     * 获取访客申请详细信息
-     */
     @Override
     public VisitorApplicationPageVO getApplicationDetail(Long id) {
         VisitorApplicationPageVO detail = this.baseMapper.getApplicationDetail(id);
@@ -264,9 +277,12 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return detail;
     }
 
+<<<<<<< HEAD
     /**
      * 门岗核验放行 —— 纯粹状态核验，不发额外通知
      */
+=======
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean passApplication(Long id) {
@@ -276,17 +292,51 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         Assert.isTrue(entity.getAdminApprovalStatus() == 1, "管理员未审批，无法放行");
         Assert.isTrue(entity.getApplicationStatus() == 0, "该申请当前状态无法放行");
 
+<<<<<<< HEAD
         entity.setApplicationStatus(1);
         entity.setGuardId(SecurityUtils.getUserId());
 
         SysUser guardUser = userService.getById(SecurityUtils.getUserId());
         if(guardUser != null) {
             entity.setGuardName(guardUser.getNickname());
+=======
+        entity.setApplicationStatus(1); // 1表示已来访完成
+        entity.setGuardId(SecurityUtils.getUserId()); // 此时类型完美匹配 Long
+        entity.setGuardTime(LocalDateTime.now());
+        return this.updateById(entity);
+    }
+
+    // ====================================================================
+    // 💡 门岗卫兵的专属分页查询拦截
+    // ====================================================================
+    @Override
+    public IPage<VisitorApplicationPageVO> getGuardApplicationPage(VisitorApplicationQuery queryParams) {
+        // 1. 解除用户ID过滤，门卫可查看所有人的数据
+        queryParams.setUserId(null);
+
+        // 2. 核心拦截规则：只能看“被访人通过(1)”且“管理员通过(1)”的完备记录
+        queryParams.setVisitedPersonApprovalStatus(1);
+        queryParams.setAdminApprovalStatus(1);
+
+        // 3. 兜底判断：如果前端没有传任何日期查询条件（既没有按天过滤，也没有区间范围）
+        boolean noDateFilter = StrUtil.isBlank(queryParams.getVisitDate())
+            && StrUtil.isBlank(queryParams.getStartDate())
+            && StrUtil.isBlank(queryParams.getEndDate());
+
+        if (noDateFilter) {
+            // 没有查询条件时，默认强制绑定今日
+            queryParams.setVisitDate(LocalDate.now().toString());
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         }
         entity.setGuardTime(LocalDateTime.now());
 
+<<<<<<< HEAD
         // 执行数据库状态更新并直接返回结果
         return this.updateById(entity);
+=======
+        Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
+        return this.baseMapper.getApplicationPage(page, queryParams);
+>>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
     }
 
     @Override
