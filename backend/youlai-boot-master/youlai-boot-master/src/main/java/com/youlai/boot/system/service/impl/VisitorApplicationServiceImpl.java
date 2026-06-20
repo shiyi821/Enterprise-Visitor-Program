@@ -3,6 +3,7 @@ package com.youlai.boot.system.service.impl;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -13,6 +14,7 @@ import com.youlai.boot.system.model.entity.VisitorApplication;
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
 import com.youlai.boot.system.model.vo.AdminDashboardVO;
+import com.youlai.boot.system.model.vo.ComprehensiveStatsVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 import com.youlai.boot.system.service.UserService;
 import com.youlai.boot.system.service.VisitorApplicationService;
@@ -24,8 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -134,24 +138,44 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
     @Override
     public AdminDashboardVO getDashboardStats() {
         AdminDashboardVO vo = new AdminDashboardVO();
+
+        // 1. 累计到访人数统计
         long visitorCount = this.count(new LambdaQueryWrapper<VisitorApplication>()
             .eq(VisitorApplication::getApplicationStatus, 1));
         vo.setTotalVisitorCount((int) visitorCount);
 
+        // 2. 待管理员审批统计
         long adminPending = this.count(new LambdaQueryWrapper<VisitorApplication>()
             .eq(VisitorApplication::getVisitedPersonApprovalStatus, 1)
             .eq(VisitorApplication::getAdminApprovalStatus, 0));
         vo.setAdminPendingCount((int) adminPending);
 
+        // 3. 待被访人审批统计
         long hostPending = this.count(new LambdaQueryWrapper<VisitorApplication>()
             .eq(VisitorApplication::getVisitedPersonApprovalStatus, 0));
         vo.setHostPendingCount((int) hostPending);
 
+        // 4. 在职员工总数统计
         long employeeCount = userService.count(new LambdaQueryWrapper<SysUser>()
             .eq(SysUser::getStatus, 1)
             .exists("SELECT 1 FROM sys_user_role ur WHERE ur.user_id = sys_user.id AND ur.role_id IN (1, 2, 4, 5)"));
-
         vo.setEmployeeCount((int) employeeCount);
+
+        // 5. 🚀新增：今日到访人数统计 (普通员工视角，只算来找自己的)
+        Long userId = SecurityUtils.getUserId();
+        String todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        QueryWrapper<VisitorApplication> wrapper = new QueryWrapper<>();
+        wrapper.select("IFNULL(SUM(visitor_count), 0) as todayCount")
+            .eq("visited_person_id", userId)
+            .eq("visit_date", todayStr);
+
+        Map<String, Object> map = this.getMap(wrapper);
+        Integer todayCount = map != null && map.get("todayCount") != null
+            ? Integer.parseInt(map.get("todayCount").toString())
+            : 0;
+        vo.setTodayVisitorCount(todayCount);
+
         return vo;
     }
 
@@ -202,6 +226,7 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
+
     @Override
     public boolean cancelApplication(Long id) {
         VisitorApplication application = new VisitorApplication();
@@ -230,5 +255,26 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         application.setAdminApprovalTime(null);
 
         return this.updateById(application);
+    }
+
+    @Override
+    public ComprehensiveStatsVO getComprehensiveStats(String startDate, String endDate) {
+        ComprehensiveStatsVO vo = new ComprehensiveStatsVO();
+
+        // 判断当前用户是否为管理员 (根据你的系统实际角色标识调整，比如 ROOT, ADMIN)
+        boolean isAdmin = SecurityUtils.getRoles().stream()
+            .anyMatch(role -> role.equalsIgnoreCase("ROOT") || role.equalsIgnoreCase("ADMIN"));
+
+        // 如果是管理员，userId传null查询全量；如果是普通员工，只能看自己
+        Long userId = isAdmin ? null : SecurityUtils.getUserId();
+
+        vo.setTrendStats(this.baseMapper.getVisitorTrend(startDate, endDate, userId));
+        vo.setCompanyStats(this.baseMapper.getCompanyStats(startDate, endDate, userId));
+
+        if (isAdmin) {
+            vo.setDeptStats(this.baseMapper.getDeptStats(startDate, endDate));
+        }
+
+        return vo;
     }
 }

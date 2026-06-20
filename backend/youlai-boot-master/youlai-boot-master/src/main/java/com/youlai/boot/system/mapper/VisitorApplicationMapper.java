@@ -5,9 +5,12 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.youlai.boot.system.model.entity.VisitorApplication;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
+import com.youlai.boot.system.model.vo.StatChartDataVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 @Mapper
 public interface VisitorApplicationMapper extends BaseMapper<VisitorApplication> {
@@ -25,4 +28,10 @@ public interface VisitorApplicationMapper extends BaseMapper<VisitorApplication>
     );
 
     VisitorApplicationPageVO getApplicationDetail(Long id);
+
+    List<StatChartDataVO> getVisitorTrend(@Param("startDate") String startDate, @Param("endDate") String endDate, @Param("userId") Long userId);
+
+    List<StatChartDataVO> getCompanyStats(@Param("startDate") String startDate, @Param("endDate") String endDate, @Param("userId") Long userId);
+
+    List<StatChartDataVO> getDeptStats(@Param("startDate") String startDate, @Param("endDate") String endDate);
 }

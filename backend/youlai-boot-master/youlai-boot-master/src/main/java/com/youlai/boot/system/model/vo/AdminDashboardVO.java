@@ -18,4 +18,7 @@ public class AdminDashboardVO {
 
     @Schema(description = "员工总数")
     private Integer employeeCount;
+
+    @Schema(description = "今日到访人数(被访人视角)")
+    private Integer todayVisitorCount;
 }
