@@ -9,6 +9,7 @@ import com.youlai.boot.common.result.Result;
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
 import com.youlai.boot.system.model.vo.AdminDashboardVO;
+import com.youlai.boot.system.model.vo.ComprehensiveStatsVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 import com.youlai.boot.system.service.VisitorApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -164,5 +165,15 @@ public class VisitorApplicationController {
     ) {
         boolean result = visitorApplicationService.rebookApplication(id);
         return Result.judge(result);
+    }
+
+    @Operation(summary = "获取数据看板图表统计")
+    @GetMapping("/dashboard/charts")
+    public Result<ComprehensiveStatsVO> getDashboardCharts(
+        @Parameter(description = "开始日期 (yyyy-MM-dd)") @RequestParam String startDate,
+        @Parameter(description = "结束日期 (yyyy-MM-dd)") @RequestParam String endDate
+    ) {
+        ComprehensiveStatsVO stats = visitorApplicationService.getComprehensiveStats(startDate, endDate);
+        return Result.success(stats);
     }
 }

@@ -3,6 +3,7 @@ package com.youlai.boot.system.service.impl;
 import cn.hutool.core.lang.Assert;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -10,15 +11,16 @@ import com.youlai.boot.framework.security.util.SecurityUtils;
 import com.youlai.boot.system.mapper.VisitorApplicationMapper;
 import com.youlai.boot.system.model.entity.SysUser;
 import com.youlai.boot.system.model.entity.VisitorApplication;
-import com.youlai.boot.system.model.entity.Notice; // 👈 引入框架通知实体
+import com.youlai.boot.system.model.entity.Notice; 
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
 import com.youlai.boot.system.model.vo.AdminDashboardVO;
+import com.youlai.boot.system.model.vo.ComprehensiveStatsVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 import com.youlai.boot.system.service.UserService;
 import com.youlai.boot.system.service.VisitorApplicationService;
-import com.youlai.boot.system.service.AiService;       // 👈 引入你写的 AI 服务
-import com.youlai.boot.system.service.NoticeService;   // 👈 引入框架自带通知服务
+import com.youlai.boot.system.service.AiService;        
+import com.youlai.boot.system.service.NoticeService;   
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -29,18 +31,20 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor // 👈 Lombok 会自动为 private final 的属性生成构造方法注入
+@RequiredArgsConstructor
 @Slf4j
 public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicationMapper, VisitorApplication> implements VisitorApplicationService {
 
     private final UserService userService;
-    private final AiService aiService;         // 👈 顺应框架，通过 final 自动注入 AI 服务
-    private final NoticeService noticeService; // 👈 顺应框架，通过 final 自动注入系统通知服务
+    private final AiService aiService;         
+    private final NoticeService noticeService; 
 
     @Override
     public IPage<VisitorApplicationPageVO> getApplicationPage(VisitorApplicationQuery queryParams) {
@@ -88,30 +92,16 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
     @Transactional(rollbackFor = Exception.class)
     public boolean deleteApplications(String ids) {
         Assert.isTrue(StrUtil.isNotBlank(ids), "删除的数据不能为空");
-<<<<<<< HEAD
-        List<String> idList = Arrays.stream(ids.split(","))
-            .map(String::trim)
-            .collect(Collectors.toList());
-=======
         List<String> idList = Arrays.stream(ids.split(",")).map(String::trim).collect(Collectors.toList());
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         return this.removeByIds(idList);
     }
 
     @Override
     public IPage<VisitorApplicationPageVO> getAuditApplicationPage(VisitorApplicationQuery queryParams) {
-<<<<<<< HEAD
-        queryParams.setVisitedPersonId(String.valueOf(SecurityUtils.getUserId()));
-        queryParams.setUserId(null);
-        int pageNum = queryParams.getPageNum();
-        int pageSize = queryParams.getPageSize();
-        Page<VisitorApplicationPageVO> page = new Page<>(pageNum, pageSize);
-=======
         // 员工查自己的被访记录，VisitedPersonId在Query里被定义成了String，所以需要String.valueOf转换
         queryParams.setVisitedPersonId(String.valueOf(SecurityUtils.getUserId()));
         queryParams.setUserId(null); // 清除用户限制，否则查不到别人的提交
         Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
 
@@ -127,60 +117,42 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
             entity.setVisitedPersonApprovalStatus(1);
         } else if (action == 2) {
             entity.setVisitedPersonApprovalStatus(2);
-<<<<<<< HEAD
-            entity.setApplicationStatus(2);
-=======
             entity.setApplicationStatus(2); // 被访人拒绝整个流程终止
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         }
         return this.updateById(entity);
     }
 
-<<<<<<< HEAD
     /**
      * 管理员审批列表
      */
-=======
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
     @Override
     public IPage<VisitorApplicationPageVO> getAdminApprovalPage(VisitorApplicationQuery queryParams) {
         Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
 
-<<<<<<< HEAD
     /**
      * 管理员审批操作（💡 核心修改：审批通过后，给访客和被访人发送通知，并解决事务回滚问题）
      */
-=======
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean adminAuditApplication(Long id, Integer action) {
         VisitorApplication entity = this.getById(id);
         Assert.notNull(entity, "访客申请不存在");
-<<<<<<< HEAD
         Assert.isTrue(entity.getVisitedPersonApprovalStatus() == 1, "被访人未审批，无法操作");
         Assert.isTrue(entity.getAdminApprovalStatus() == 0, "该申请已审批，请勿重复操作");
 
         Long currentUserId = SecurityUtils.getUserId();
         if (action == 1) {
             entity.setAdminApprovalStatus(1);
-            entity.setApplicationStatus(0);
-        } else if (action == 2) {
-            entity.setAdminApprovalStatus(2);
-            entity.setApplicationStatus(2);
-        } else {
-            throw new IllegalArgumentException("非法的审批操作类型");
-=======
-        if (action == 1) {
-            entity.setAdminApprovalStatus(1);
             entity.setApplicationStatus(0); // 整体流程流转到：待门岗核验(待来访)
         } else if (action == 2) {
             entity.setAdminApprovalStatus(2);
-            entity.setApplicationStatus(2);
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
+            entity.setApplicationStatus(2); // 拒绝流转
+        } else {
+            throw new IllegalArgumentException("非法的审批操作类型");
         }
+        
         entity.setAdminId(SecurityUtils.getUserId());
         entity.setAdminApprovalTime(LocalDateTime.now());
 
@@ -208,9 +180,9 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
                             entity.getApplicantName(), entity.getVisitorCompany(), aiScript));
                         hostNotice.setType(1);
                         hostNotice.setTargetType(2);
-                        hostNotice.setTargetUserIds(entity.getVisitedPersonId()); // 发给被访人
+                        hostNotice.setTargetUserIds(String.valueOf(entity.getVisitedPersonId())); // 发给被访人
                         hostNotice.setLevel("M");
-                        hostNotice.setPublisherId(currentUserId); // 补全发布人，防空指针
+                        hostNotice.setPublisherId(currentUserId); 
                         hostNotice.setPublishStatus(0); // ⚠️ 必须设为0(草稿)，由后面的publishNotice去转正！
 
                         noticeService.save(hostNotice);
@@ -226,7 +198,7 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
                         visitorNotice.setTargetUserIds(String.valueOf(entity.getUserId())); // 发给提交申请的访客
                         visitorNotice.setLevel("M");
                         visitorNotice.setPublisherId(currentUserId);
-                        visitorNotice.setPublishStatus(0); // ⚠️ 必须设为0
+                        visitorNotice.setPublishStatus(0); 
 
                         noticeService.save(visitorNotice);
                         noticeService.publishNotice(visitorNotice.getId());
@@ -244,29 +216,44 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
     @Override
     public AdminDashboardVO getDashboardStats() {
         AdminDashboardVO vo = new AdminDashboardVO();
+
+        // 1. 累计到访人数统计
         long visitorCount = this.count(new LambdaQueryWrapper<VisitorApplication>()
-            .eq(VisitorApplication::getVisitedPersonApprovalStatus, 1)
-            .eq(VisitorApplication::getAdminApprovalStatus, 1));
+            .eq(VisitorApplication::getApplicationStatus, 1));
         vo.setTotalVisitorCount((int) visitorCount);
 
+        // 2. 待管理员审批统计
         long adminPending = this.count(new LambdaQueryWrapper<VisitorApplication>()
             .eq(VisitorApplication::getVisitedPersonApprovalStatus, 1)
             .eq(VisitorApplication::getAdminApprovalStatus, 0));
         vo.setAdminPendingCount((int) adminPending);
 
+        // 3. 待被访人审批统计
         long hostPending = this.count(new LambdaQueryWrapper<VisitorApplication>()
             .eq(VisitorApplication::getVisitedPersonApprovalStatus, 0));
         vo.setHostPendingCount((int) hostPending);
 
+        // 4. 在职员工总数统计
         long employeeCount = userService.count(new LambdaQueryWrapper<SysUser>()
             .eq(SysUser::getStatus, 1)
-<<<<<<< HEAD
-            .exists("SELECT 1 FROM sys_user_role ur WHERE ur.user_id = sys_user.id AND ur.role_id IN (1, 2,4,5)"));
-=======
             .exists("SELECT 1 FROM sys_user_role ur WHERE ur.user_id = sys_user.id AND ur.role_id IN (1, 2, 4, 5)"));
-
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         vo.setEmployeeCount((int) employeeCount);
+
+        // 5. 今日到访人数统计 (普通员工视角，只算来找自己的)
+        Long userId = SecurityUtils.getUserId();
+        String todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+        QueryWrapper<VisitorApplication> wrapper = new QueryWrapper<>();
+        wrapper.select("IFNULL(SUM(visitor_count), 0) as todayCount")
+            .eq("visited_person_id", userId)
+            .eq("visit_date", todayStr);
+
+        Map<String, Object> map = this.getMap(wrapper);
+        Integer todayCount = map != null && map.get("todayCount") != null
+            ? Integer.parseInt(map.get("todayCount").toString())
+            : 0;
+        vo.setTodayVisitorCount(todayCount);
+
         return vo;
     }
 
@@ -277,12 +264,9 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return detail;
     }
 
-<<<<<<< HEAD
     /**
      * 门岗核验放行 —— 纯粹状态核验，不发额外通知
      */
-=======
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean passApplication(Long id) {
@@ -292,17 +276,16 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         Assert.isTrue(entity.getAdminApprovalStatus() == 1, "管理员未审批，无法放行");
         Assert.isTrue(entity.getApplicationStatus() == 0, "该申请当前状态无法放行");
 
-<<<<<<< HEAD
-        entity.setApplicationStatus(1);
+        entity.setApplicationStatus(1); // 1表示已来访完成
         entity.setGuardId(SecurityUtils.getUserId());
 
         SysUser guardUser = userService.getById(SecurityUtils.getUserId());
         if(guardUser != null) {
             entity.setGuardName(guardUser.getNickname());
-=======
-        entity.setApplicationStatus(1); // 1表示已来访完成
-        entity.setGuardId(SecurityUtils.getUserId()); // 此时类型完美匹配 Long
+        }
         entity.setGuardTime(LocalDateTime.now());
+
+        // 执行数据库状态更新并直接返回结果
         return this.updateById(entity);
     }
 
@@ -326,17 +309,10 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         if (noDateFilter) {
             // 没有查询条件时，默认强制绑定今日
             queryParams.setVisitDate(LocalDate.now().toString());
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
         }
-        entity.setGuardTime(LocalDateTime.now());
 
-<<<<<<< HEAD
-        // 执行数据库状态更新并直接返回结果
-        return this.updateById(entity);
-=======
         Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
         return this.baseMapper.getApplicationPage(page, queryParams);
->>>>>>> 61b7618cb3093c50965dc11374f9bfe1ac6f7dc4
     }
 
     @Override
@@ -361,5 +337,26 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         application.setVisitedApprovalTime(null);
         application.setAdminApprovalTime(null);
         return this.updateById(application);
+    }
+
+    @Override
+    public ComprehensiveStatsVO getComprehensiveStats(String startDate, String endDate) {
+        ComprehensiveStatsVO vo = new ComprehensiveStatsVO();
+
+        // 判断当前用户是否为管理员 (根据你的系统实际角色标识调整，比如 ROOT, ADMIN)
+        boolean isAdmin = SecurityUtils.getRoles().stream()
+            .anyMatch(role -> role.equalsIgnoreCase("ROOT") || role.equalsIgnoreCase("ADMIN"));
+
+        // 如果是管理员，userId传null查询全量；如果是普通员工，只能看自己
+        Long userId = isAdmin ? null : SecurityUtils.getUserId();
+
+        vo.setTrendStats(this.baseMapper.getVisitorTrend(startDate, endDate, userId));
+        vo.setCompanyStats(this.baseMapper.getCompanyStats(startDate, endDate, userId));
+
+        if (isAdmin) {
+            vo.setDeptStats(this.baseMapper.getDeptStats(startDate, endDate));
+        }
+
+        return vo;
     }
 }

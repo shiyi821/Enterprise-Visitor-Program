@@ -6,6 +6,7 @@ import com.youlai.boot.system.model.entity.VisitorApplication;
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
 import com.youlai.boot.system.model.vo.AdminDashboardVO;
+import com.youlai.boot.system.model.vo.ComprehensiveStatsVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 
 public interface VisitorApplicationService extends IService<VisitorApplication> {
@@ -76,4 +77,9 @@ public interface VisitorApplicationService extends IService<VisitorApplication> 
      * 门卫视角-分页查询今日待访以及历史记录 (💡 核心新增)
      */
     IPage<VisitorApplicationPageVO> getGuardApplicationPage(VisitorApplicationQuery queryParams);
+
+    /**
+     * 获取数据看板图表统计数据
+     */
+    ComprehensiveStatsVO getComprehensiveStats(String startDate, String endDate);
 }

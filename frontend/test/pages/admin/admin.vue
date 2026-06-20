@@ -12,23 +12,29 @@
 		</view>
 
 		<view class="data-card" v-if="userRole !== 'guard'">
-			<view class="data-item">
-				<text class="num text-blue">{{ stats.totalVisitorCount }}</text>
-				<text class="label">到访人数</text>
+			
+			<view class="data-item" v-if="userRole === 'admin'">
+				<text class="num text-blue">{{ stats.totalVisitorCount || 0 }}</text>
+				<text class="label">累计到访</text>
+			</view>
+			
+			<view class="data-item" v-if="userRole === 'host'">
+				<text class="num text-blue">{{ stats.todayVisitorCount || 0 }}</text>
+				<text class="label">今日到访</text>
 			</view>
 			
 			<view class="data-item" v-if="userRole === 'admin'">
-				<text class="num text-orange">{{ stats.adminPendingCount }}</text>
+				<text class="num text-orange">{{ stats.adminPendingCount || 0 }}</text>
 				<text class="label">待管理审核</text>
 			</view>
 			
 			<view class="data-item">
-				<text class="num text-pink">{{ stats.hostPendingCount }}</text>
+				<text class="num text-pink">{{ stats.hostPendingCount || 0 }}</text>
 				<text class="label">{{ userRole === 'host' ? '待我审核' : '待员工审核' }}</text>
 			</view>
 			
 			<view class="data-item" v-if="userRole === 'admin'">
-				<text class="num text-green">{{ stats.employeeCount }}</text>
+				<text class="num text-green">{{ stats.employeeCount || 0 }}</text>
 				<text class="label">在职员工</text>
 			</view>
 		</view>
@@ -92,6 +98,13 @@
 					</view>
 					<text class="name">节假日设置</text>
 				</view>
+				
+				<view class="grid-item" @click="navTo('/pages/admin/stats/index')">
+					<view class="icon-wrap bg-yellow">
+						<image class="icon" src="/static/images/tabbar/home.png"></image>
+					</view>
+					<text class="name">数据统计</text>
+				</view>
 			</view>
 		</view>
 
@@ -118,13 +131,7 @@
 					</view>
 					<text class="name">通知发布</text>
 				</view>
-				<view class="grid-item" @click="navTo('/pages/admin/stats/index')">
-					<view class="icon-wrap bg-yellow">
-						<image class="icon" src="/static/images/tabbar/home.png"></image>
-					</view>
-					<text class="name">数据统计</text>
 				</view>
-			</view>
 		</view>
 
 	</view>
@@ -149,6 +156,7 @@
 	// 定义响应式的统计数据源
 	const stats = ref({
 		totalVisitorCount: 0,
+		todayVisitorCount: 0,
 		adminPendingCount: 0,
 		hostPendingCount: 0,
 		employeeCount: 0

@@ -142,6 +142,13 @@
 						"navigationBarBackgroundColor": "#0066ce",
 						"navigationBarTextStyle": "white"
 			}
+		},
+		{
+		    "path": "pages/admin/stats/index",
+		    "style": {
+		        "navigationBarTitleText": "数据看板",
+		        "enablePullDownRefresh": false
+		    }
 		}
 	],
 	"globalStyle": {
