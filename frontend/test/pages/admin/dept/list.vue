@@ -187,16 +187,20 @@
 		}
 	};
 
-	const loadData = async () => {
+	// 修改后的 loadData 函数
+const loadData = async () => {
 		uni.showLoading({ title: '检索中...' });
 		try {
-			const queryParams = {
-				keywords: searchKey.value ? searchKey.value.trim() : undefined
-			};
+			// 🚀 修改点：在这里做严格判断
+			const queryParams = {};
+			if (searchKey.value && searchKey.value.trim() !== '') {
+				queryParams.keywords = searchKey.value.trim();
+			}
 
 			const res = await getDeptList(queryParams);
 			if (res.code === '00000' && res.data) {
-				deptList.value = flattenTree(res.data);
+				// 依然保留深拷贝，适配小程序
+				deptList.value = JSON.parse(JSON.stringify(flattenTree(res.data)));
 			} else {
 				uni.showToast({ title: res.msg || '获取数据失败', icon: 'none' });
 			}
@@ -207,7 +211,6 @@
 			uni.hideLoading();
 		}
 	};
-
 	const handleClearSearch = () => {
 		searchKey.value = '';
 		loadData();
@@ -218,10 +221,11 @@
 			const res = await getDeptOptions();
 			if (res.code === '00000' && res.data) {
 				const flatOptions = flattenOptions(res.data);
-				parentDeptOptions.value = [
+				// 🚀 核心修改：使用深拷贝去除 Proxy 代理
+				parentDeptOptions.value = JSON.parse(JSON.stringify([
 					{ id: 0, name: '顶级部门', originalName: '顶级部门' },
 					...flatOptions
-				];
+				]));
 			}
 		} catch (error) {
 			console.error('获取部门字典失败:', error);
