@@ -11,6 +11,7 @@ import com.youlai.boot.framework.security.util.SecurityUtils;
 import com.youlai.boot.system.mapper.VisitorApplicationMapper;
 import com.youlai.boot.system.model.entity.SysUser;
 import com.youlai.boot.system.model.entity.VisitorApplication;
+import com.youlai.boot.system.model.entity.Notice; 
 import com.youlai.boot.system.model.form.VisitorApplicationForm;
 import com.youlai.boot.system.model.query.VisitorApplicationQuery;
 import com.youlai.boot.system.model.vo.AdminDashboardVO;
@@ -18,11 +19,15 @@ import com.youlai.boot.system.model.vo.ComprehensiveStatsVO;
 import com.youlai.boot.system.model.vo.VisitorApplicationPageVO;
 import com.youlai.boot.system.service.UserService;
 import com.youlai.boot.system.service.VisitorApplicationService;
+import com.youlai.boot.system.service.AiService;        
+import com.youlai.boot.system.service.NoticeService;   
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +43,8 @@ import java.util.stream.Collectors;
 public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicationMapper, VisitorApplication> implements VisitorApplicationService {
 
     private final UserService userService;
+    private final AiService aiService;         
+    private final NoticeService noticeService; 
 
     @Override
     public IPage<VisitorApplicationPageVO> getApplicationPage(VisitorApplicationQuery queryParams) {
@@ -98,6 +105,9 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
 
+    /**
+     * 被访人（员工）审批操作
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean auditApplication(Long id, Integer action) {
@@ -112,27 +122,95 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return this.updateById(entity);
     }
 
+    /**
+     * 管理员审批列表
+     */
     @Override
     public IPage<VisitorApplicationPageVO> getAdminApprovalPage(VisitorApplicationQuery queryParams) {
         Page<VisitorApplicationPageVO> page = new Page<>(queryParams.getPageNum(), queryParams.getPageSize());
         return this.baseMapper.getApplicationPage(page, queryParams);
     }
 
+    /**
+     * 管理员审批操作（💡 核心修改：审批通过后，给访客和被访人发送通知，并解决事务回滚问题）
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean adminAuditApplication(Long id, Integer action) {
         VisitorApplication entity = this.getById(id);
         Assert.notNull(entity, "访客申请不存在");
+        Assert.isTrue(entity.getVisitedPersonApprovalStatus() == 1, "被访人未审批，无法操作");
+        Assert.isTrue(entity.getAdminApprovalStatus() == 0, "该申请已审批，请勿重复操作");
+
+        Long currentUserId = SecurityUtils.getUserId();
         if (action == 1) {
             entity.setAdminApprovalStatus(1);
             entity.setApplicationStatus(0); // 整体流程流转到：待门岗核验(待来访)
         } else if (action == 2) {
             entity.setAdminApprovalStatus(2);
-            entity.setApplicationStatus(2);
+            entity.setApplicationStatus(2); // 拒绝流转
+        } else {
+            throw new IllegalArgumentException("非法的审批操作类型");
         }
+        
         entity.setAdminId(SecurityUtils.getUserId());
         entity.setAdminApprovalTime(LocalDateTime.now());
-        return this.updateById(entity);
+
+        // 1. 先执行核心的数据库状态更新
+        boolean isSuccess = this.updateById(entity);
+
+        // 2. 只有审批【同意】并且数据库更新成功了，才去发通知
+        if (isSuccess && action == 1) {
+            // 核心修复：使用事务同步器，等审批完全落库提交后，再执行发消息。这样发消息出任何错都不会回滚审批！
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        // ① 调用大模型生成话术
+                        String aiScript = aiService.generateReceptionScript(
+                            entity.getApplicantName(),
+                            entity.getVisitorCompany(),
+                            entity.getVisitPurpose()
+                        );
+
+                        // ② 给【被访员工】发通知（带AI）
+                        Notice hostNotice = new Notice();
+                        hostNotice.setTitle("访客预约成功通知");
+                        hostNotice.setContent(String.format("您好，由您接待的访客【%s】（单位：%s）已通过最终审批。\n\n💡 AI 专属接待话术建议：\n%s",
+                            entity.getApplicantName(), entity.getVisitorCompany(), aiScript));
+                        hostNotice.setType(1);
+                        hostNotice.setTargetType(2);
+                        hostNotice.setTargetUserIds(String.valueOf(entity.getVisitedPersonId())); // 发给被访人
+                        hostNotice.setLevel("M");
+                        hostNotice.setPublisherId(currentUserId); 
+                        hostNotice.setPublishStatus(0); // ⚠️ 必须设为0(草稿)，由后面的publishNotice去转正！
+
+                        noticeService.save(hostNotice);
+                        noticeService.publishNotice(hostNotice.getId());
+
+                        // ③ 给【访客】发普通成功通知
+                        Notice visitorNotice = new Notice();
+                        visitorNotice.setTitle("预约申请通过通知");
+                        visitorNotice.setContent(String.format("您好，您提交的访客预约申请（预计到访日期：%s）已通过最终审批，请按时前往企业园区。",
+                            entity.getVisitDate()));
+                        visitorNotice.setType(1);
+                        visitorNotice.setTargetType(2);
+                        visitorNotice.setTargetUserIds(String.valueOf(entity.getUserId())); // 发给提交申请的访客
+                        visitorNotice.setLevel("M");
+                        visitorNotice.setPublisherId(currentUserId);
+                        visitorNotice.setPublishStatus(0); 
+
+                        noticeService.save(visitorNotice);
+                        noticeService.publishNotice(visitorNotice.getId());
+
+                    } catch (Exception e) {
+                        log.error("审批成功后，分发通知或AI调用失败（不影响主流程）", e);
+                    }
+                }
+            });
+        }
+
+        return isSuccess;
     }
 
     @Override
@@ -161,7 +239,7 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
             .exists("SELECT 1 FROM sys_user_role ur WHERE ur.user_id = sys_user.id AND ur.role_id IN (1, 2, 4, 5)"));
         vo.setEmployeeCount((int) employeeCount);
 
-        // 5. 🚀新增：今日到访人数统计 (普通员工视角，只算来找自己的)
+        // 5. 今日到访人数统计 (普通员工视角，只算来找自己的)
         Long userId = SecurityUtils.getUserId();
         String todayStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
@@ -186,6 +264,9 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         return detail;
     }
 
+    /**
+     * 门岗核验放行 —— 纯粹状态核验，不发额外通知
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean passApplication(Long id) {
@@ -196,8 +277,15 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
         Assert.isTrue(entity.getApplicationStatus() == 0, "该申请当前状态无法放行");
 
         entity.setApplicationStatus(1); // 1表示已来访完成
-        entity.setGuardId(SecurityUtils.getUserId()); // 此时类型完美匹配 Long
+        entity.setGuardId(SecurityUtils.getUserId());
+
+        SysUser guardUser = userService.getById(SecurityUtils.getUserId());
+        if(guardUser != null) {
+            entity.setGuardName(guardUser.getNickname());
+        }
         entity.setGuardTime(LocalDateTime.now());
+
+        // 执行数据库状态更新并直接返回结果
         return this.updateById(entity);
     }
 
@@ -231,14 +319,11 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
     public boolean cancelApplication(Long id) {
         VisitorApplication application = new VisitorApplication();
         application.setId(id);
-        application.setApplicationStatus(3); // 3 代表已撤销
-        application.setVisitedPersonApprovalStatus(0); // 审批状态重置为0
-        application.setAdminApprovalStatus(0); // 审批状态重置为0
-
-        // 建议：清空之前可能留下的审批时间和人
+        application.setApplicationStatus(3);
+        application.setVisitedPersonApprovalStatus(0);
+        application.setAdminApprovalStatus(0);
         application.setVisitedApprovalTime(null);
         application.setAdminApprovalTime(null);
-
         return this.updateById(application);
     }
 
@@ -246,14 +331,11 @@ public class VisitorApplicationServiceImpl extends ServiceImpl<VisitorApplicatio
     public boolean rebookApplication(Long id) {
         VisitorApplication application = new VisitorApplication();
         application.setId(id);
-        application.setApplicationStatus(0); // 0 代表待来访/审核中
-        application.setVisitedPersonApprovalStatus(0); // 审批状态重置为0
-        application.setAdminApprovalStatus(0); // 审批状态重置为0
-
-        // 重新预约等同于重新提交，清空旧的审批记录
+        application.setApplicationStatus(0);
+        application.setVisitedPersonApprovalStatus(0);
+        application.setAdminApprovalStatus(0);
         application.setVisitedApprovalTime(null);
         application.setAdminApprovalTime(null);
-
         return this.updateById(application);
     }
 
