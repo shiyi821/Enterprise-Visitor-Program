@@ -101,10 +101,7 @@
 </template>
 
 <script setup>
-	import {
-		ref,
-		onMounted
-	} from 'vue';
+	import { ref, onMounted } from 'vue';
 	import {
 		getEmployeePage,
 		addEmployee,
@@ -176,14 +173,15 @@
 		try {
 			const res = await getDeptOptions();
 			if (res.code === '00000' && res.data) {
-				rawDeptTree.value = res.data;
-				level1Options.value = [{
+				// 🚀 核心修改：使用深拷贝去除 Proxy 代理
+				rawDeptTree.value = JSON.parse(JSON.stringify(res.data));
+				level1Options.value = JSON.parse(JSON.stringify([{
 					label: '全部部门',
 					value: ''
-				}, ...res.data];
+				}, ...res.data]));
 
 				const flatDepts = flattenDepts(res.data);
-				deptOptions.value = flatDepts;
+				deptOptions.value = JSON.parse(JSON.stringify(flatDepts));
 			}
 		} catch (error) {
 			console.error('获取部门字典失败:', error);
@@ -194,12 +192,13 @@
 		try {
 			const res = await getRoleOptions();
 			if (res.code === '00000' && res.data) {
-				roleOptions.value = res.data
+				// 🚀 核心修改：使用深拷贝去除 Proxy 代理
+				roleOptions.value = JSON.parse(JSON.stringify(res.data
 					.map(item => ({
 						id: item.value,
 						name: item.label
 					}))
-					.filter(item => item.name !== '访问人');
+					.filter(item => item.name !== '访问人')));
 			}
 		} catch (error) {
 			console.error('获取角色字典失败:', error);
@@ -232,48 +231,47 @@
 	};
 
 	const loadData = async () => {
-		uni.showLoading({
-			title: '加载中...'
-		});
-		try {
-			const queryParams = {
-				pageNum: 1,
-				pageSize: 100,
-				keywords: searchKey.value || undefined,
-				deptId: selectedDeptId.value === '' ? undefined : selectedDeptId.value
-			};
-
-			const res = await getEmployeePage(queryParams);
-			if (res.code === '00000') {
-				let allUsers = res.data?.list || [];
-
-				allUsers = allUsers.filter(user => {
-					if (user.roleNames && user.roleNames.includes('访问人')) return false;
-					return true;
-				});
-
-				if (level2Options.length > 0 && level2Name.value !== '全部子部门') {
-					allUsers = allUsers.filter(user => user.deptName === level2Name.value);
+			uni.showLoading({ title: '加载中...' });
+			try {
+				// 🚀 核心修改：先只放必须的参数
+				const queryParams = {
+					pageNum: 1,
+					pageSize: 100
+				};
+	            
+	            // 🚀 核心修改：如果有值，才把属性加进去。避免传字符串 "undefined" 给后端
+	            if (searchKey.value) {
+	                queryParams.keywords = searchKey.value;
+	            }
+	            if (selectedDeptId.value !== '') {
+	                queryParams.deptId = selectedDeptId.value;
+	            }
+	
+				const res = await getEmployeePage(queryParams);
+				if (res.code === '00000') {
+					let allUsers = res.data?.list || [];
+	
+					allUsers = allUsers.filter(user => {
+						if (user.roleNames && user.roleNames.includes('访问人')) return false;
+						return true;
+					});
+	
+					if (level2Options.value && level2Options.value.length > 0 && level2Name.value !== '全部子部门') {
+						allUsers = allUsers.filter(user => user.deptName === level2Name.value);
+					}
+	
+					// 使用深拷贝去除 Proxy 代理
+					userList.value = JSON.parse(JSON.stringify(allUsers));
+				} else {
+					uni.showToast({ title: res.msg || '获取列表失败', icon: 'none' });
 				}
-
-				userList.value = allUsers;
-			} else {
-				uni.showToast({
-					title: res.msg || '获取列表失败',
-					icon: 'none'
-				});
+			} catch (error) {
+				console.error('获取员工数据异常:', error);
+				uni.showToast({ title: '网络连接异常', icon: 'none' });
+			} finally {
+				uni.hideLoading();
 			}
-		} catch (error) {
-			console.error('获取员工数据异常:', error);
-			uni.showToast({
-				title: '网络连接异常',
-				icon: 'none'
-			});
-		} finally {
-			uni.hideLoading();
-		}
-	};
-
+		};
 	const onFormDeptChange = (e) => {
 		const index = e.detail.value;
 		form.value.deptId = deptOptions.value[index].id;
@@ -513,7 +511,6 @@
 		color: transparent !important;
 		background: transparent !important;
 	}
-
 
 	.container {
 		height: 100vh;
